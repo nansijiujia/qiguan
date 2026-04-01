@@ -1,0 +1,273 @@
+/* logistics/logistics.wxss */
+.container {
+  background-color: #f5f5f5;
+  min-height: 100vh;
+  padding-bottom: 20rpx;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 80vh;
+}
+
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 8rpx solid #f3f3f3;
+  border-top: 8rpx solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 32rpx;
+  color: #666;
+}
+
+/* 错误状态 */
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 80vh;
+  padding: 0 40rpx;
+}
+
+.error-icon {
+  width: 160rpx;
+  height: 160rpx;
+  margin-bottom: 30rpx;
+}
+
+.error-text {
+  font-size: 32rpx;
+  color: #666;
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.refresh-btn {
+  background-color: #3498db;
+  color: white;
+  padding: 15rpx 40rpx;
+  border-radius: 40rpx;
+  font-size: 30rpx;
+}
+
+.refresh-btn.small {
+  padding: 8rpx 20rpx;
+  font-size: 24rpx;
+}
+
+.refresh-btn-text {
+  color: white;
+}
+
+.refresh-btn-text.small {
+  font-size: 24rpx;
+}
+
+/* 物流信息 */
+.logistics-container {
+  background-color: white;
+  margin-top: 20rpx;
+}
+
+/* 物流头部 */
+.logistics-header {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.logistics-status {
+  margin-bottom: 30rpx;
+}
+
+.status-text {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #3498db;
+  margin-bottom: 10rpx;
+  display: block;
+}
+
+.status-desc {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.logistics-info {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-label {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.info-value {
+  font-size: 28rpx;
+  color: #333;
+  flex: 1;
+  text-align: right;
+  margin-left: 20rpx;
+}
+
+.tracking-number {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  margin-left: 20rpx;
+}
+
+.copy-btn {
+  background-color: #f0f0f0;
+  padding: 5rpx 15rpx;
+  border-radius: 20rpx;
+  margin-left: 15rpx;
+}
+
+.copy-btn-text {
+  font-size: 24rpx;
+  color: #666;
+}
+
+/* 物流轨迹 */
+.tracking-section {
+  padding: 30rpx;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.tracking-list {
+  position: relative;
+}
+
+.tracking-item {
+  display: flex;
+  margin-bottom: 40rpx;
+  position: relative;
+}
+
+.tracking-line {
+  width: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 20rpx;
+}
+
+.line-dot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
+  background-color: #e0e0e0;
+  margin-bottom: 5rpx;
+}
+
+.line-dot.active {
+  background-color: #3498db;
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.line-vertical {
+  width: 2rpx;
+  flex: 1;
+  background-color: #e0e0e0;
+}
+
+.line-vertical.active {
+  background-color: #3498db;
+}
+
+.tracking-content {
+  flex: 1;
+  padding-bottom: 40rpx;
+}
+
+.tracking-time {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 10rpx;
+}
+
+.tracking-description {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.5;
+}
+
+/* 底部操作 */
+.bottom-section {
+  padding: 30rpx;
+  border-top: 1rpx solid #f0f0f0;
+  margin-top: 20rpx;
+  background-color: white;
+}
+
+.contact-service {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 0;
+}
+
+.service-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 15rpx;
+}
+
+.service-text {
+  font-size: 30rpx;
+  color: #3498db;
+}
+
+/* 响应式设计 */
+@media (max-width: 375px) {
+  .status-text {
+    font-size: 32rpx;
+  }
+  
+  .info-label,
+  .info-value,
+  .tracking-description {
+    font-size: 26rpx;
+  }
+  
+  .tracking-time {
+    font-size: 22rpx;
+  }
+}

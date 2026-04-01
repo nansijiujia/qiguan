@@ -1,0 +1,188 @@
+<!-- category.wxml -->
+<view class="category-page">
+  <!-- 顶部搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-container">
+      <icon class="search-icon" type="search" size="16" color="#9ca3af" />
+      <input 
+        class="search-input" 
+        placeholder="搜索分类商品" 
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+      />
+    </view>
+    <button class="search-btn" bindtap="onSearch">搜索</button>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-container" wx:if="{{error}}">
+    <view class="error-icon">⚠️</view>
+    <view class="error-message">{{errorMessage}}</view>
+    <button class="retry-btn" bindtap="retryLoadData">重新加载</button>
+  </view>
+
+  <!-- 主内容区 -->
+  <view class="main-content" wx:if="{{!error}}">
+    <!-- 左侧分类导航 -->
+    <view class="category-nav">
+      <view 
+        class="category-nav-item {{activeCategoryId == item.id ? 'active' : ''}}" 
+        wx:for="{{categories}}" 
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onCategoryChange"
+      >
+        <view class="category-nav-icon">{{item.icon}}</view>
+        <view class="category-nav-name">{{item.name}}</view>
+        <view class="category-nav-count">{{item.count}}</view>
+      </view>
+    </view>
+
+    <!-- 右侧商品区域 -->
+    <view class="product-area">
+      <!-- 排序选项 -->
+      <view class="sort-options">
+        <view 
+          class="sort-item {{activeSort == 'default' ? 'active' : ''}}"
+          data-sort="default"
+          bindtap="onSortChange"
+        >
+          综合
+        </view>
+        <view 
+          class="sort-item {{activeSort == 'price' ? 'active' : ''}}"
+          data-sort="price"
+          bindtap="onSortChange"
+        >
+          价格
+          <icon class="sort-icon" type="arrowup" size="12" color="#6b7280" />
+        </view>
+        <view 
+          class="sort-item {{activeSort == 'sales' ? 'active' : ''}}"
+          data-sort="sales"
+          bindtap="onSortChange"
+        >
+          销量
+        </view>
+        <view 
+          class="sort-item {{activeSort == 'rating' ? 'active' : ''}}"
+          data-sort="rating"
+          bindtap="onSortChange"
+        >
+          评分
+        </view>
+      </view>
+
+      <!-- 子分类导航 -->
+      <view class="subcategory-nav">
+        <view 
+          class="subcategory-item {{activeSubcategoryId == item.id ? 'active' : ''}}"
+          wx:for="{{subcategories}}" 
+          wx:key="id"
+          data-id="{{item.id}}"
+          bindtap="onSubcategoryChange"
+        >
+          {{item.name}}
+        </view>
+      </view>
+
+      <!-- 商品列表 -->
+      <view class="product-grid">
+        <view 
+          class="product-item product-enter" 
+          wx:for="{{products}}" 
+          wx:key="id"
+          data-id="{{item.id}}"
+          bindtap="onProductClick"
+        >
+          <view class="product-image-container">
+            <image 
+              class="product-image" 
+              src="{{item.image}}"
+              mode="aspectFill"
+            />
+            <view class="product-badge" wx:if="{{item.isNew}}">新品</view>
+            <view class="product-badge hot" wx:if="{{item.isHot}}">热卖</view>
+          </view>
+          <view class="product-info">
+            <view class="product-title">{{item.title}}</view>
+            <view class="product-price-container">
+              <view class="product-price">¥{{item.price}}</view>
+              <view class="product-original-price" wx:if="{{item.originalPrice}}">¥{{item.originalPrice}}</view>
+            </view>
+            <view class="product-footer">
+              <view class="product-sales">销量{{item.sales}}</view>
+              <button class="add-to-cart-btn" bindtap="onAddToCart" data-id="{{item.id}}">
+                <icon type="cart" size="14" color="#ffffff" />
+              </button>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 加载更多 -->
+      <view class="load-more" wx:if="{{loading && hasMore}}">
+        <view class="loading"></view>
+      </view>
+      <view class="no-more" wx:elif="{{!hasMore && products.length > 0}}">
+        <view class="no-more-text">没有更多商品了</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 骨架屏 -->
+  <view class="skeleton-container" wx:if="{{showSkeleton}}">
+    <!-- 搜索栏骨架屏 -->
+    <view class="skeleton-search-bar">
+      <view class="skeleton-search-input"></view>
+      <view class="skeleton-search-btn"></view>
+    </view>
+    
+    <!-- 主内容骨架屏 -->
+    <view class="skeleton-main-content">
+      <!-- 左侧分类导航骨架屏 -->
+      <view class="skeleton-category-nav">
+        <view class="skeleton-category-item" wx:for="{{5}}" wx:key="index">
+          <view class="skeleton-category-icon"></view>
+          <view class="skeleton-category-name"></view>
+          <view class="skeleton-category-count"></view>
+        </view>
+      </view>
+      
+      <!-- 右侧商品区域骨架屏 -->
+      <view class="skeleton-product-area">
+        <!-- 排序选项骨架屏 -->
+        <view class="skeleton-sort-options">
+          <view class="skeleton-sort-item" wx:for="{{4}}" wx:key="index"></view>
+        </view>
+        
+        <!-- 子分类导航骨架屏 -->
+        <view class="skeleton-subcategory-nav">
+          <view class="skeleton-subcategory-item" wx:for="{{5}}" wx:key="index"></view>
+        </view>
+        
+        <!-- 商品列表骨架屏 -->
+        <view class="skeleton-product-grid">
+          <view class="skeleton-product-item" wx:for="{{6}}" wx:key="index">
+            <view class="skeleton-product-image"></view>
+            <view class="skeleton-product-info">
+              <view class="skeleton-product-title"></view>
+              <view class="skeleton-product-price"></view>
+              <view class="skeleton-product-footer">
+                <view class="skeleton-product-sales"></view>
+                <view class="skeleton-add-to-cart"></view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading-container" wx:if="{{loading && categories.length == 0 && !showSkeleton}}">
+    <view class="loading"></view>
+    <view class="loading-text">加载中...</view>
+  </view>
+</view>

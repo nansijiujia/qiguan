@@ -1,0 +1,19 @@
+{
+  "name": "qimengzhiyue",
+  "version": "1.0.0",
+  "description": "成人用品类目电商微信小程序",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "微信小程序",
+    "电商",
+    "成人用品"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vant/weapp": "^1.10.0"
+  }
+}

@@ -1,0 +1,60 @@
+<!-- register.wxml -->
+<view class="register-page">
+  <view class="register-container">
+    <view class="logo-section">
+      <view class="logo">新用户注册</view>
+      <view class="slogan">加入新绮梦之约</view>
+    </view>
+    
+    <view class="form-section">
+      <view class="form-item">
+        <input 
+          type="text" 
+          placeholder="请设置用户名" 
+          value="{{username}}" 
+          bindinput="onUsernameInput"
+          class="form-input"
+        />
+      </view>
+      <view class="form-item">
+        <input 
+          type="number" 
+          placeholder="请输入手机号" 
+          value="{{phone}}" 
+          bindinput="onPhoneInput"
+          class="form-input"
+        />
+      </view>
+      <view class="form-item">
+        <input 
+          type="password" 
+          placeholder="请设置密码" 
+          value="{{password}}" 
+          bindinput="onPasswordInput"
+          class="form-input"
+        />
+      </view>
+      <view class="form-item">
+        <input 
+          type="password" 
+          placeholder="请确认密码" 
+          value="{{confirmPassword}}" 
+          bindinput="onConfirmPasswordInput"
+          class="form-input"
+        />
+      </view>
+      <button 
+        type="primary" 
+        bindtap="onRegister" 
+        class="register-btn"
+        loading="{{loading}}"
+        disabled="{{loading}}"
+      >
+        注册
+      </button>
+      <view class="action-section">
+        <text bindtap="goToLogin" class="login-link">已有账号，立即登录</text>
+      </view>
+    </view>
+  </view>
+</view>

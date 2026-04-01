@@ -1,0 +1,458 @@
+/* coupon.wxss */
+
+/* 页面容器 */
+.container {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-secondary);
+  padding-bottom: 1rem;
+}
+
+/* 页面标题 */
+.header {
+  height: 5rem;
+  background-color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin-top: -1px;
+  border-top: 1px solid transparent;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  position: relative;
+  padding-left: 1rem;
+}
+
+.title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 1.25rem;
+  background-color: var(--primary-color);
+  border-radius: 0.25rem;
+}
+
+/* 标签栏 */
+.tab-bar {
+  display: flex;
+  background-color: var(--bg-primary);
+  margin-bottom: 1rem;
+  position: sticky;
+  top: 5rem;
+  z-index: 90;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.tab-item {
+  flex: 1;
+  height: 3.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.tab-item:hover {
+  background-color: var(--bg-secondary);
+}
+
+.tab-text {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.tab-item.active .tab-text {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  width: 50%;
+  height: 4px;
+  background-color: var(--primary-color);
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.4);
+  animation: tabSlideIn 0.3s ease-out;
+}
+
+@keyframes tabSlideIn {
+  from {
+    width: 0;
+    left: 50%;
+  }
+  to {
+    width: 50%;
+    left: 25%;
+  }
+}
+
+/* 优惠券列表 */
+.coupon-list {
+  padding: 0 1rem;
+}
+
+/* 优惠券项 */
+.coupon-item {
+  display: flex;
+  background-color: var(--bg-primary);
+  border-radius: 1rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.coupon-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* 左侧金额区域 */
+.coupon-left {
+  width: 10rem;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  position: relative;
+  transition: all 0.3s ease;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 右侧信息区域 */
+.coupon-right {
+  flex: 1;
+  padding: 1.5rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* 金额 */
+.coupon-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: all 0.3s ease;
+}
+
+.coupon-item:hover .coupon-value {
+  transform: scale(1.05);
+}
+
+.coupon-min-spend {
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+  opacity: 0.9;
+  background-color: rgba(255,255,255,0.2);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  backdrop-filter: blur(4px);
+}
+
+/* 优惠券名称 */
+.coupon-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  transition: all 0.3s ease;
+}
+
+.coupon-item:hover .coupon-name {
+  color: var(--primary-color);
+}
+
+/* 优惠券类型 */
+.coupon-type {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  margin-bottom: 0.75rem;
+  display: inline-block;
+  background-color: var(--bg-tertiary);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  width: fit-content;
+}
+
+/* 有效期 */
+.coupon-expire {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.coupon-expire::before {
+  content: '⏰';
+  font-size: 0.875rem;
+}
+
+/* 已使用/已过期状态 */
+.coupon-used, .coupon-expired {
+  font-size: 0.875rem;
+  color: var(--error-color);
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.coupon-used::before {
+  content: '✓';
+  background-color: var(--error-color);
+  color: white;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+.coupon-expired::before {
+  content: '✗';
+  background-color: var(--error-color);
+  color: white;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+/* 操作按钮 */
+.coupon-actions {
+  margin-top: 1rem;
+}
+
+.use-btn {
+  width: 6.25rem;
+  height: 2.25rem;
+  line-height: 2.25rem;
+  text-align: center;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 0.875rem;
+  border-radius: 9999px;
+  border: none;
+  padding: 0;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.4);
+}
+
+.use-btn:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.6);
+}
+
+.use-btn:active {
+  transform: translateY(0);
+}
+
+.use-btn::after {
+  border: none;
+}
+
+/* 已使用/已过期优惠券样式 */
+.coupon-item.used .coupon-left,
+.coupon-item.expired .coupon-left {
+  background: linear-gradient(135deg, var(--text-tertiary) 0%, #cbd5e1 100%);
+}
+
+.coupon-item.used .coupon-name,
+.coupon-item.expired .coupon-name {
+  color: var(--text-tertiary);
+}
+
+.coupon-item.used .coupon-type,
+.coupon-item.expired .coupon-type {
+  background-color: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+/* 空状态 */
+.empty-state {
+  height: 20rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-primary);
+  border-radius: 1rem;
+  margin: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.empty-state:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+}
+
+.empty-state text {
+  font-size: 1rem;
+  color: var(--text-tertiary);
+  margin-top: 1rem;
+}
+
+.empty-state::before {
+  content: '🎫';
+  font-size: 3rem;
+  opacity: 0.5;
+}
+
+/* 加载状态 */
+.loading-state {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 装饰性虚线 */
+.coupon-item::before {
+  content: '';
+  position: absolute;
+  left: calc(10rem - 10px);
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  background-image: radial-gradient(circle, var(--bg-tertiary) 50%, transparent 50%);
+  background-size: 20px 20px;
+  background-repeat: repeat-y;
+  background-position: center;
+}
+
+/* 优惠券卡片边缘装饰 */
+.coupon-item::after {
+  content: '';
+  position: absolute;
+  right: 1.5rem;
+  top: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background-color: var(--bg-secondary);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.coupon-item:hover::after {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+/* 响应式设计 */
+@media (max-width: 375px) {
+  .coupon-left {
+    width: 8.75rem;
+  }
+  
+  .coupon-value {
+    font-size: 1.75rem;
+  }
+  
+  .coupon-right {
+    padding: 1.25rem;
+  }
+  
+  .coupon-name {
+    font-size: 1rem;
+  }
+  
+  .coupon-item::before {
+    left: calc(8.75rem - 10px);
+  }
+}
+
+/* 动画效果 */
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 优惠券进入动画 */
+.coupon-enter {
+  animation: couponEnter 0.4s ease-out;
+}
+
+@keyframes couponEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 标签切换动画 */
+.tab-content-enter {
+  animation: tabContentEnter 0.3s ease-out;
+}
+
+@keyframes tabContentEnter {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

@@ -1,0 +1,48 @@
+<!-- customer-service/faq.wxml -->
+<view class="faq-page">
+  <!-- 顶部导航栏 -->
+  <view class="top-nav">
+    <view class="nav-left" bindtap="onBack">
+      <icon type="back" size="24" color="#1f2937" />
+    </view>
+    <view class="nav-title">常见问题</view>
+    <view class="nav-right"></view>
+  </view>
+
+  <!-- 分类标签 -->
+  <view class="category-tabs">
+    <view 
+      wx:for="{{categories}}" 
+      wx:key="{{index}}"
+      class="tab-item {{activeCategory === item.id ? 'active' : ''}}"
+      bindtap="switchCategory" 
+      data-category="{{item.id}}"
+    >
+      {{item.name}}
+    </view>
+  </view>
+
+  <!-- 问题列表 -->
+  <view class="faq-list">
+    <view 
+      wx:for="{{filteredFAQs}}" 
+      wx:key="{{index}}"
+      class="faq-item"
+      bindtap="toggleAnswer" 
+      data-index="{{index}}"
+    >
+      <view class="question-section">
+        <text class="question">{{item.question}}</text>
+        <icon 
+          class="expand-icon {{item.expanded ? 'expanded' : ''}}" 
+          type="arrowdown" 
+          size="16" 
+          color="#6b7280" 
+        />
+      </view>
+      <view class="answer-section" wx:if="{{item.expanded}}">
+        <text class="answer">{{item.answer}}</text>
+      </view>
+    </view>
+  </view>
+</view>

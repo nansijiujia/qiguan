@@ -1,0 +1,150 @@
+<!-- mine.wxml -->
+<view class="mine-page">
+  <!-- 顶部导航栏 -->
+  <view class="top-nav">
+    <view class="nav-left"></view>
+    <view class="nav-title">个人中心</view>
+    <view class="nav-right">
+      <icon type="settings" size="20" color="#1f2937" bindtap="onSettings" />
+    </view>
+  </view>
+
+  <!-- 用户信息区域 -->
+  <view class="user-section" bindtap="onUserInfo">
+    <view wx:if="{{isLoggedIn}}" class="user-info">
+      <image src="{{userInfo.avatar || '/images/我的.png'}}" class="user-avatar" mode="aspectFill" />
+      <view class="user-details">
+        <view class="user-nickname">{{userInfo.nickname}}</view>
+        <view class="user-username">{{userInfo.username}}</view>
+      </view>
+      <icon type="right" size="20" color="#9ca3af" />
+    </view>
+    <view wx:else class="login-prompt" bindtap="goToLogin">
+      <image src="/images/我的.png" class="user-avatar" mode="aspectFill" />
+      <view class="login-text">点击登录</view>
+      <icon type="right" size="20" color="#9ca3af" />
+    </view>
+  </view>
+
+  <!-- 订单状态导航 -->
+  <view class="order-section">
+    <view class="section-header">
+      <view class="section-title">我的订单</view>
+      <view class="section-more" bindtap="onViewAllOrders">
+        查看全部
+        <icon type="right" size="16" color="#6b7280" />
+      </view>
+    </view>
+    <view class="order-stats">
+      <view class="order-item" bindtap="onOrderStatus" data-status="pending">
+        <view class="order-icon">
+          <image src="/images/待付款.png" mode="aspectFill" />
+        </view>
+        <view class="order-label">待付款</view>
+        <view class="order-badge" wx:if="{{orderStats.pending}}">{{orderStats.pending}}</view>
+      </view>
+      <view class="order-item" bindtap="onOrderStatus" data-status="shipping">
+        <view class="order-icon">
+          <image src="/images/待发货.png" mode="aspectFill" />
+        </view>
+        <view class="order-label">待发货</view>
+        <view class="order-badge" wx:if="{{orderStats.shipping}}">{{orderStats.shipping}}</view>
+      </view>
+      <view class="order-item" bindtap="onOrderStatus" data-status="delivered">
+        <view class="order-icon">
+          <image src="/images/待收货.png" mode="aspectFill" />
+        </view>
+        <view class="order-label">待收货</view>
+        <view class="order-badge" wx:if="{{orderStats.delivered}}">{{orderStats.delivered}}</view>
+      </view>
+      <view class="order-item" bindtap="onCustomerService">
+        <view class="order-icon">
+          <image src="/images/售后.png" mode="aspectFill" />
+        </view>
+        <view class="order-label">售后</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能菜单 -->
+  <view class="menu-section">
+    <view class="menu-card">
+      <view class="menu-item" bindtap="onFavorite">
+        <view class="menu-icon">
+          <icon type="star" size="24" color="#f59e0b" />
+        </view>
+        <view class="menu-label">我的收藏</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+      <view class="menu-item" bindtap="onFootprint">
+        <view class="menu-icon">
+          <icon type="location" size="24" color="#3b82f6" />
+        </view>
+        <view class="menu-label">浏览足迹</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+      <view class="menu-item" bindtap="onCoupon">
+        <view class="menu-icon">
+          <image src="/images/优惠券.png" mode="aspectFill" />
+        </view>
+        <view class="menu-label">我的优惠券</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+    </view>
+    
+    <view class="menu-card">
+      <view class="menu-item" bindtap="onAddress">
+        <view class="menu-icon">
+          <icon type="map" size="24" color="#10b981" />
+        </view>
+        <view class="menu-label">收货地址</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+      <view class="menu-item" bindtap="onCustomerService">
+        <view class="menu-icon">
+          <image src="/images/客服.png" mode="aspectFill" />
+        </view>
+        <view class="menu-label">在线客服</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+      <view class="menu-item" bindtap="onFeedback">
+        <view class="menu-icon">
+          <icon type="info" size="24" color="#ec4899" />
+        </view>
+        <view class="menu-label">意见反馈</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+    </view>
+    
+    <!-- 账户管理菜单 -->
+    <view class="menu-card" wx:if="{{isLoggedIn}}">
+      <view class="menu-item" bindtap="onProfile">
+        <view class="menu-icon">
+          <icon type="person" size="24" color="#3b82f6" />
+        </view>
+        <view class="menu-label">个人信息</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+      <view class="menu-item" bindtap="onChangePassword">
+        <view class="menu-icon">
+          <icon type="lock" size="24" color="#10b981" />
+        </view>
+        <view class="menu-label">修改密码</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+      <view class="menu-item" bindtap="onLogout">
+        <view class="menu-icon">
+          <icon type="logout" size="24" color="#ef4444" />
+        </view>
+        <view class="menu-label">退出登录</view>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部版本信息 -->
+  <view class="version-section">
+    <view class="version-text">版本 {{appInfo.version}}</view>
+    <view class="copyright-text">© 2024 新绮梦之约</view>
+  </view>
+</view>

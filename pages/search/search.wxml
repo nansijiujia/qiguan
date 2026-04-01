@@ -1,0 +1,107 @@
+<!-- search.wxml -->
+<view class="search-page">
+  <!-- 搜索栏 -->
+  <view class="search-header">
+    <view class="search-input-container">
+      <icon class="search-icon" type="search" size="16" color="#9ca3af" />
+      <input 
+        class="search-input" 
+        placeholder="搜索商品" 
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+        focus
+      />
+      <text class="cancel-btn" bindtap="onCancel">取消</text>
+    </view>
+  </view>
+
+  <!-- 搜索内容区域 -->
+  <view class="search-content">
+    <!-- 搜索历史 -->
+    <view class="search-history" wx:if="!hasSearched && searchHistory.length > 0">
+      <view class="history-header">
+        <text class="history-title">搜索历史</text>
+        <text class="clear-history" bindtap="onClearHistory">清除历史</text>
+      </view>
+      <view class="history-tags">
+        <text 
+          class="history-tag" 
+          wx:for="{{searchHistory}}" 
+          wx:key="index"
+          bindtap="onHistoryItemClick"
+          data-text="{{item}}"
+        >{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 热门搜索 -->
+    <view class="hot-search" wx:if="!hasSearched">
+      <view class="hot-header">
+        <text class="hot-title">热门搜索</text>
+      </view>
+      <view class="hot-tags">
+        <text 
+          class="hot-tag" 
+          wx:for="{{hotKeywords}}" 
+          wx:key="index"
+          bindtap="onHotItemClick"
+          data-text="{{item}}"
+        >{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 加载状态 -->
+    <view class="loading" wx:if="loading"></view>
+
+    <!-- 搜索结果 -->
+    <view class="search-results" wx:if="hasSearched && !loading">
+      <view class="results-header">
+        <text class="results-title">搜索结果</text>
+        <text class="results-count">{{searchResults.length}} 个商品</text>
+      </view>
+      
+      <!-- 无结果 -->
+      <view class="no-results" wx:if="searchResults.length === 0">
+        <icon type="search" size="64" color="#d1d5db" />
+        <text class="no-results-text">未找到相关商品</text>
+        <text class="no-results-hint">换个关键词试试</text>
+      </view>
+      
+      <!-- 商品列表 -->
+      <view class="goods-grid" wx:else>
+        <view 
+          class="goods-item fade-in" 
+          wx:for="{{searchResults}}" 
+          wx:key="item.id"
+          bindtap="onGoodsClick"
+          data-id="{{item.id}}"
+        >
+          <view class="goods-image-container">
+            <image 
+              class="goods-image" 
+              src="{{item.image || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sex%20toy%20product%20elegant%20design%20white%20background%20minimalist&image_size=square'}}"
+              mode="aspectFill"
+            />
+            <view class="goods-badge" wx:if="item.isNew">新品</view>
+            <view class="goods-badge hot" wx:elif="item.isHot">热卖</view>
+            <view class="goods-badge bestseller" wx:elif="item.isBestseller">畅销</view>
+            <view class="goods-badge discount" wx:elif="item.isDiscount">特惠</view>
+          </view>
+          <view class="goods-info">
+            <view class="goods-title">{{item.name}}</view>
+            <view class="goods-footer">
+              <view class="goods-price-container">
+                <view class="goods-price">¥{{item.price}}</view>
+                <view class="goods-original-price" wx:if="item.originalPrice">¥{{item.originalPrice}}</view>
+              </view>
+              <button class="add-to-cart-btn" bindtap="onAddToCart" data-id="{{item.id}}">
+                <icon type="cart" size="14" color="#ffffff" />
+              </button>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

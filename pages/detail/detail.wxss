@@ -1,0 +1,959 @@
+/* detail.wxss */
+
+/* 详情页容器 */
+.detail-page {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-secondary);
+  position: relative;
+}
+
+/* 顶部导航栏 */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(8px);
+  background: linear-gradient(to bottom, var(--bg-primary), rgba(255, 255, 255, 0.95));
+}
+
+.nav-left,
+.nav-right {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  border-radius: 50%;
+  margin: 0 -0.5rem;
+}
+
+.nav-left:hover,
+.nav-right:hover {
+  background-color: var(--bg-secondary);
+  transform: scale(1.1);
+}
+
+.nav-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.nav-title::after {
+  content: '';
+  position: absolute;
+  bottom: -0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2rem;
+  height: 2px;
+  background-color: var(--primary-color);
+  border-radius: 1px;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* 商品图片轮播 */
+.image-swiper {
+  width: 100%;
+  height: 400px;
+  background-color: var(--bg-primary);
+  margin-bottom: 1rem;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.swiper-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.5s ease;
+}
+
+.swiper-image:hover {
+  transform: scale(1.05);
+}
+
+/* 商品基本信息 */
+.product-info {
+  background-color: var(--bg-primary);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  margin: 0 1rem 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-light);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.product-info::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.05), transparent);
+  transition: left 0.5s ease;
+}
+
+.product-info:hover::before {
+  left: 100%;
+}
+
+.product-info:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.price-container {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.current-price {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--error-color);
+  text-shadow: 0 1px 2px rgba(239, 68, 68, 0.2);
+  transition: all 0.3s ease;
+}
+
+.current-price:hover {
+  transform: scale(1.05);
+}
+
+.original-price {
+  font-size: 1rem;
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+  transition: all 0.3s ease;
+}
+
+.discount-tag {
+  background-color: var(--error-color);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.3);
+  transition: all 0.3s ease;
+}
+
+.discount-tag:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4);
+}
+
+.title-container {
+  margin-bottom: 1rem;
+}
+
+.product-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  position: relative;
+  padding-bottom: 0.75rem;
+}
+
+.product-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 3rem;
+  height: 2px;
+  background-color: var(--primary-color);
+  border-radius: 1px;
+}
+
+.product-subtitle {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  background-color: var(--bg-tertiary);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--primary-light);
+}
+
+.stats-container {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(to bottom, rgba(99, 102, 241, 0.02), rgba(99, 102, 241, 0.05), rgba(99, 102, 241, 0.02));
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+  background-color: var(--bg-secondary);
+  transform: translateY(-2px);
+}
+
+.stat-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover .stat-value {
+  color: var(--primary-color);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover .stat-label {
+  color: var(--text-secondary);
+}
+
+.tags-container {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.tag {
+  background-color: var(--bg-tertiary);
+  color: var(--primary-color);
+  padding: 0.375rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 2px rgba(99, 102, 241, 0.1);
+}
+
+.tag:hover {
+  background-color: rgba(99, 102, 241, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+}
+
+.tag.hot {
+  background-color: #fee2e2;
+  color: var(--error-color);
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.1);
+}
+
+.tag.hot:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+/* 库存提示 */
+.stock-tip {
+  background-color: #fef3c7;
+  color: #92400e;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 1rem 0;
+  border-left: 4px solid #f59e0b;
+  transition: all 0.3s ease;
+  animation: slideIn 0.3s ease-out;
+}
+
+.stock-tip:hover {
+  background-color: #fde68a;
+  transform: translateX(5px);
+}
+
+/* 商品规格选择 */
+.specs-section {
+  background-color: var(--bg-primary);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  margin: 0 1rem 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.specs-section:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  position: relative;
+  padding-bottom: 0.75rem;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 3rem;
+  height: 2px;
+  background-color: var(--primary-color);
+  border-radius: 1px;
+}
+
+.spec-group {
+  margin-bottom: 1.75rem;
+}
+
+.spec-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--border-light);
+}
+
+.spec-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.spec-option {
+  padding: 0.875rem 1.25rem;
+  border: 2px solid var(--border-light);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.spec-option::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background-color: rgba(99, 102, 241, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.spec-option:hover::before {
+  width: 3rem;
+  height: 3rem;
+}
+
+.spec-option:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+}
+
+.spec-option.active {
+  border-color: var(--primary-color);
+  background-color: #f3f4fd;
+  color: var(--primary-color);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+}
+
+.quantity-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.quantity-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+}
+
+.quantity-section:hover .quantity-title {
+  color: var(--text-primary);
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-light);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.quantity-control:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary-light);
+}
+
+.quantity-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.375rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.quantity-btn:first-child {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 0.75rem 0 0 0.75rem;
+}
+
+.quantity-btn:last-child {
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 0 0.75rem 0.75rem 0;
+}
+
+.quantity-btn:hover:first-child {
+  background-color: var(--bg-tertiary);
+  transform: scale(1.05);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.quantity-btn:hover:last-child {
+  background-color: var(--primary-dark);
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.4);
+}
+
+.quantity-input {
+  width: 64px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+  background-color: var(--bg-primary);
+  transition: all 0.3s ease;
+}
+
+.quantity-control:hover .quantity-input {
+  background-color: var(--bg-secondary);
+}
+
+/* 商品详情描述 */
+.detail-section {
+  background-color: var(--bg-primary);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  margin: 0 1rem 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.detail-section:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.detail-content {
+  line-height: 1.7;
+}
+
+.detail-image {
+  margin-bottom: 2rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.detail-image:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: scale(1.02);
+}
+
+.detail-image image {
+  width: 100%;
+  height: auto;
+  transition: transform 0.5s ease;
+}
+
+.detail-image:hover image {
+  transform: scale(1.05);
+}
+
+.detail-subtitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  margin-top: 2rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-light);
+  position: relative;
+}
+
+.detail-subtitle::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 3rem;
+  height: 3px;
+  background-color: var(--primary-color);
+  border-radius: 1.5px;
+}
+
+.detail-paragraph {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  line-height: 1.7;
+  padding: 1rem;
+  background-color: var(--bg-tertiary);
+  border-radius: 0.75rem;
+  border-left: 3px solid var(--primary-light);
+  transition: all 0.3s ease;
+}
+
+.detail-paragraph:hover {
+  background-color: rgba(99, 102, 241, 0.05);
+  border-left-color: var(--primary-color);
+  transform: translateX(5px);
+}
+
+
+
+/* 底部操作栏 */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--bg-primary);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  z-index: 999;
+  backdrop-filter: blur(12px);
+  background: linear-gradient(to top, var(--bg-primary), rgba(255, 255, 255, 0.95));
+  border-top: 1px solid var(--border-light);
+}
+
+.bar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.bar-item::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background-color: rgba(99, 102, 241, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.bar-item:hover::before {
+  width: 3rem;
+  height: 3rem;
+}
+
+.bar-item:hover {
+  background-color: var(--bg-secondary);
+  transform: translateY(-4px);
+}
+
+.bar-label {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.bar-item:hover .bar-label {
+  color: var(--primary-color);
+}
+
+.bar-right {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  margin-left: 2rem;
+}
+
+.btn-cart {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background-color: var(--bg-tertiary);
+  color: var(--primary-color);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-cart::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background-color: rgba(99, 102, 241, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.btn-cart:hover::before {
+  width: 5rem;
+  height: 5rem;
+}
+
+.btn-cart:hover {
+  background-color: rgba(99, 102, 241, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+}
+
+.btn-buy {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  color: white;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.4);
+  position: relative;
+  overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.btn-buy::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.btn-buy:hover::before {
+  width: 5rem;
+  height: 5rem;
+}
+
+.btn-buy:hover {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.6);
+  transform: translateY(-2px);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .image-swiper {
+    height: 350px;
+  }
+  
+  .product-info {
+    padding: 1.25rem;
+    margin: 0 0.75rem 0.75rem;
+  }
+  
+  .specs-section {
+    padding: 1.25rem;
+    margin: 0 0.75rem 0.75rem;
+  }
+  
+  .detail-section {
+    padding: 1.25rem;
+    margin: 0 0.75rem 0.75rem;
+  }
+  
+
+  .bottom-bar {
+    padding: 1rem;
+  }
+  
+  .bar-left {
+    gap: 1.25rem;
+  }
+  
+  .bar-right {
+    margin-left: 1.5rem;
+    gap: 0.75rem;
+  }
+  
+  .current-price {
+    font-size: 1.625rem;
+  }
+  
+  .product-title {
+    font-size: 1.25rem;
+  }
+  
+  .spec-option {
+    padding: 0.75rem 1rem;
+  }
+  
+  .quantity-btn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .quantity-input {
+    width: 56px;
+    height: 40px;
+  }
+  
+  .btn-cart,
+  .btn-buy {
+    padding: 0.875rem;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 375px) {
+  .image-swiper {
+    height: 280px;
+  }
+  
+  .product-info {
+    padding: 1rem;
+  }
+  
+  .specs-section {
+    padding: 1rem;
+  }
+  
+  .detail-section {
+    padding: 1rem;
+  }
+  
+
+  .bottom-bar {
+    padding: 0.75rem;
+  }
+  
+  .bar-left {
+    gap: 1rem;
+  }
+  
+  .bar-right {
+    margin-left: 1rem;
+  }
+  
+  .current-price {
+    font-size: 1.5rem;
+  }
+  
+  .product-title {
+    font-size: 1.125rem;
+  }
+  
+  .spec-options {
+    gap: 0.75rem;
+  }
+  
+  .spec-option {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+  
+  .btn-cart,
+  .btn-buy {
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* 动画效果 */
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* 商品添加动画 */
+@keyframes addToCart {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.add-animation {
+  animation: addToCart 0.5s ease-out;
+}
+
+/* 骨架屏效果 */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 0.25rem;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* 加载状态动画 */
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-light);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

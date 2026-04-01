@@ -1,0 +1,67 @@
+<!-- customer-service/index.wxml -->
+<view class="customer-service-page">
+  <!-- 顶部导航栏 -->
+  <view class="top-nav">
+    <view class="nav-left" bindtap="onBack">
+      <icon type="back" size="24" color="#1f2937" />
+    </view>
+    <view class="nav-title">客户服务</view>
+    <view class="nav-right"></view>
+  </view>
+
+  <!-- 服务选项卡片 -->
+  <view class="service-cards">
+    <!-- 在线客服 -->
+    <view class="service-card" bindtap="goToChat">
+      <view class="card-icon">
+        <image src="/images/客服.png" mode="aspectFill" />
+      </view>
+      <view class="card-content">
+        <view class="card-title">在线客服</view>
+        <view class="card-desc">与客服人员实时沟通</view>
+      </view>
+      <icon type="right" size="20" color="#9ca3af" />
+    </view>
+
+    <!-- 常见问题 -->
+    <view class="service-card" bindtap="goToFAQ">
+      <view class="card-icon">
+        <icon type="info" size="32" color="#3b82f6" />
+      </view>
+      <view class="card-content">
+        <view class="card-title">常见问题</view>
+        <view class="card-desc">查看常见问题解答</view>
+      </view>
+      <icon type="right" size="20" color="#9ca3af" />
+    </view>
+
+    <!-- 售后申请 -->
+    <view class="service-card" bindtap="goToAfterSales">
+      <view class="card-icon">
+        <image src="/images/售后.png" mode="aspectFill" />
+      </view>
+      <view class="card-content">
+        <view class="card-title">售后申请</view>
+        <view class="card-desc">申请退货、退款或换货</view>
+      </view>
+      <icon type="right" size="20" color="#9ca3af" />
+    </view>
+  </view>
+
+  <!-- 联系信息 -->
+  <view class="contact-section">
+    <view class="section-title">联系我们</view>
+    <view class="contact-item">
+      <view class="contact-label">客服电话</view>
+      <view class="contact-value">400-123-4567</view>
+    </view>
+    <view class="contact-item">
+      <view class="contact-label">服务时间</view>
+      <view class="contact-value">周一至周日 9:00-21:00</view>
+    </view>
+    <view class="contact-item">
+      <view class="contact-label">邮箱</view>
+      <view class="contact-value">service@qimengzhiyue.com</view>
+    </view>
+  </view>
+</view>

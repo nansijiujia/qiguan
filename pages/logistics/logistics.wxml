@@ -1,0 +1,77 @@
+<!-- logistics/logistics.wxml -->
+<view class="container">
+  <!-- 加载状态 -->
+  <view class="loading-container" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 错误状态 -->
+  <view class="error-container" wx:elif="{{error}}">
+    <image src="/images/售后.png" mode="aspectFit" class="error-icon"></image>
+    <text class="error-text">{{error}}</text>
+    <view class="refresh-btn" bindtap="refreshLogistics">
+      <text class="refresh-btn-text">重试</text>
+    </view>
+  </view>
+
+  <!-- 物流信息 -->
+  <view class="logistics-container" wx:else>
+    <!-- 物流基本信息 -->
+    <view class="logistics-header">
+      <view class="logistics-status">
+        <text class="status-text">{{logistics.status}}</text>
+        <text class="status-desc">{{logistics.status === 'delivered' ? '商品已签收' : '商品运输中'}}</text>
+      </view>
+      <view class="logistics-info">
+        <view class="info-item">
+          <text class="info-label">物流公司</text>
+          <text class="info-value">{{logistics.company}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">物流单号</text>
+          <view class="tracking-number">
+            <text class="info-value">{{logistics.trackingNumber}}</text>
+            <view class="copy-btn" bindtap="copyTrackingNumber">
+              <text class="copy-btn-text">复制</text>
+            </view>
+          </view>
+        </view>
+        <view class="info-item">
+          <text class="info-label">发货时间</text>
+          <text class="info-value">{{logistics.shippedAt}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 物流轨迹 -->
+    <view class="tracking-section">
+      <view class="section-header">
+        <text class="section-title">物流轨迹</text>
+        <view class="refresh-btn small" bindtap="refreshLogistics">
+          <text class="refresh-btn-text small">刷新</text>
+        </view>
+      </view>
+      <view class="tracking-list">
+        <view class="tracking-item" wx:for="{{tracking}}" wx:key="{{index}}">
+          <view class="tracking-line">
+            <view class="line-dot {{index === 0 ? 'active' : ''}}"></view>
+            <view class="line-vertical {{index === 0 ? 'active' : ''}}" wx:if="{{index < tracking.length - 1}}"></view>
+          </view>
+          <view class="tracking-content">
+            <view class="tracking-time">{{item.time}}</view>
+            <view class="tracking-description">{{item.description}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作 -->
+    <view class="bottom-section">
+      <view class="contact-service" bindtap="callService">
+        <image src="/images/客服.png" mode="aspectFit" class="service-icon"></image>
+        <text class="service-text">联系客服</text>
+      </view>
+    </view>
+  </view>
+</view>

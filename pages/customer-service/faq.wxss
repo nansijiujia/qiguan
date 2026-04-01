@@ -1,0 +1,126 @@
+/* customer-service/faq.wxss */
+.faq-page {
+  min-height: 100vh;
+  background-color: #f3f4f6;
+}
+
+/* 顶部导航栏 */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 50px;
+  background-color: #ffffff;
+  padding: 0 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-left, .nav-right {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* 分类标签 */
+.category-tabs {
+  display: flex;
+  background-color: #ffffff;
+  padding: 0 16px;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 50px;
+  z-index: 90;
+}
+
+.tab-item {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #6b7280;
+  margin-right: 8px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.tab-item.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  font-weight: 500;
+}
+
+/* 问题列表 */
+.faq-list {
+  padding: 16px;
+}
+
+.faq-item {
+  background-color: #ffffff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* 问题部分 */
+.question-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.question {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.4;
+  margin-right: 12px;
+}
+
+.expand-icon {
+  transition: transform 0.3s ease;
+  margin-top: 2px;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* 答案部分 */
+.answer-section {
+  padding: 0 16px 16px;
+  border-top: 1px solid #f3f4f6;
+  animation: slideDown 0.3s ease;
+}
+
+.answer {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+/* 动画效果 */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

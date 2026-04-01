@@ -1,0 +1,257 @@
+<!-- detail.wxml -->
+<view class="detail-page">
+  <!-- 顶部导航栏 -->
+  <view class="top-nav">
+    <view class="nav-left" bindtap="onBack">
+      <icon type="arrowleft" size="20" color="#1f2937" />
+    </view>
+    <view class="nav-title">商品详情</view>
+    <view class="nav-right">
+      <icon type="share" size="20" color="#1f2937" bindtap="onShare" />
+      <icon type="search" size="20" color="#1f2937" bindtap="onSearch" style="margin-left: 1.5rem;" />
+    </view>
+  </view>
+
+  <!-- 商品图片轮播 -->
+  <view class="image-swiper" wx:if="{{!loading}}">
+    <swiper 
+      class="swiper" 
+      autoplay 
+      interval="3000" 
+      duration="500" 
+      indicator-dots 
+      indicator-active-color="#6366f1"
+      indicator-color="rgba(99, 102, 241, 0.3)"
+    >
+      <swiper-item>
+        <image 
+          class="swiper-image" 
+          src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20sex%20toy%20product%20elegant%20design%20white%20background&image_size=square"
+          mode="aspectFill"
+          bindload="onImageLoad"
+          binderror="onImageError"
+        />
+      </swiper-item>
+      <swiper-item>
+        <image 
+          class="swiper-image" 
+          src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sex%20toy%20product%20detail%20close%20up%20elegant%20design&image_size=square"
+          mode="aspectFill"
+          bindload="onImageLoad"
+          binderror="onImageError"
+        />
+      </swiper-item>
+      <swiper-item>
+        <image 
+          class="swiper-image" 
+          src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sex%20toy%20product%20packaging%20elegant%20design&image_size=square"
+          mode="aspectFill"
+          bindload="onImageLoad"
+          binderror="onImageError"
+        />
+      </swiper-item>
+    </swiper>
+  </view>
+  <!-- 商品图片轮播骨架屏 -->
+  <view class="image-swiper skeleton-loading" wx:else>
+    <view class="swiper skeleton swiper-skeleton"></view>
+  </view>
+
+  <!-- 商品基本信息 -->
+  <view class="product-info" wx:if="{{!loading}}">
+    <view class="price-container">
+      <view class="current-price">¥{{productInfo.price}}</view>
+      <view class="original-price" wx:if="{{productInfo.originalPrice}}">¥{{productInfo.originalPrice}}</view>
+      <view class="discount-tag" wx:if="{{productInfo.discount}}">{{productInfo.discount}}折</view>
+    </view>
+    
+    <view class="title-container">
+      <view class="product-title">{{productInfo.title}}</view>
+      <view class="product-subtitle">{{productInfo.subtitle}}</view>
+    </view>
+    
+    <view class="stats-container">
+      <view class="stat-item">
+        <view class="stat-value">{{productInfo.sales}}</view>
+        <view class="stat-label">销量</view>
+      </view>
+      <view class="stat-item">
+        <view class="stat-value">{{currentStock}}</view>
+        <view class="stat-label">库存</view>
+      </view>
+    </view>
+    
+    <view class="stock-tip" wx:if="{{stockTip}}">
+      {{stockTip}}
+    </view>
+    
+    <view class="tags-container">
+      <view class="tag" wx:if="{{productInfo.isNew}}">新品</view>
+      <view class="tag hot" wx:if="{{productInfo.isHot}}">热卖</view>
+      <view class="tag">{{productInfo.brand}}</view>
+    </view>
+  </view>
+  <!-- 商品基本信息骨架屏 -->
+  <view class="product-info skeleton-loading" wx:else>
+    <view class="price-container">
+      <view class="skeleton price-skeleton"></view>
+      <view class="skeleton original-price-skeleton"></view>
+      <view class="skeleton discount-tag-skeleton"></view>
+    </view>
+    
+    <view class="title-container">
+      <view class="skeleton title-skeleton"></view>
+      <view class="skeleton subtitle-skeleton"></view>
+    </view>
+    
+    <view class="stats-container">
+      <view class="stat-item" wx:for="{{[1,2]}}" wx:key="item">
+        <view class="skeleton stat-value-skeleton"></view>
+        <view class="skeleton stat-label-skeleton"></view>
+      </view>
+    </view>
+    
+    <view class="tags-container">
+      <view class="skeleton tag-skeleton" wx:for="{{[1,2,3]}}" wx:key="item"></view>
+    </view>
+  </view>
+
+  <!-- 商品规格选择 -->
+  <view class="specs-section" wx:if="{{!loading}}">
+    <view class="section-title">选择规格</view>
+    
+    <view class="spec-group" wx:for="{{specGroups}}" wx:key="id">
+      <view class="spec-title">{{item.name}}</view>
+      <view class="spec-options">
+        <view 
+          class="spec-option {{selectedSpecs[item.id] == option.id ? 'active' : ''}}"
+          wx:for="{{item.options}}"
+          wx:key="id"
+          data-group-id="{{item.id}}"
+          data-option-id="{{option.id}}"
+          bindtap="onSpecSelect"
+        >
+          {{option.name}}
+        </view>
+      </view>
+    </view>
+    
+    <view class="quantity-section">
+      <view class="quantity-title">购买数量</view>
+      <view class="quantity-control">
+        <view class="quantity-btn" bindtap="onDecreaseQuantity">-</view>
+        <view class="quantity-input">{{quantity}}</view>
+        <view class="quantity-btn" bindtap="onIncreaseQuantity">+</view>
+      </view>
+    </view>
+  </view>
+  <!-- 商品规格选择骨架屏 -->
+  <view class="specs-section skeleton-loading" wx:else>
+    <view class="section-title">选择规格</view>
+    
+    <view class="spec-group" wx:for="{{[1,2]}}" wx:key="item">
+      <view class="skeleton spec-title-skeleton"></view>
+      <view class="spec-options">
+        <view class="skeleton spec-option-skeleton" wx:for="{{[1,2,3]}}" wx:key="option"></view>
+      </view>
+    </view>
+    
+    <view class="quantity-section">
+      <view class="skeleton quantity-title-skeleton"></view>
+      <view class="quantity-control">
+        <view class="skeleton quantity-btn-skeleton"></view>
+        <view class="skeleton quantity-input-skeleton"></view>
+        <view class="skeleton quantity-btn-skeleton"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 商品详情描述 -->
+  <view class="detail-section" wx:if="{{!loading}}">
+    <view class="section-title">商品详情</view>
+    
+    <view class="detail-content">
+      <view class="detail-image">
+        <image 
+          src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=product%20detail%20description%20modern%20clean%20design&image_size=landscape_16_9"
+          mode="aspectFill"
+          bindload="onImageLoad"
+          binderror="onImageError"
+        />
+      </view>
+      
+      <view class="detail-text">
+        <view class="detail-subtitle">产品特点</view>
+        <view class="detail-paragraph">
+          本产品采用优质硅胶材质，安全无毒，柔软舒适。10种振动模式，满足不同需求，静音设计，使用更加私密。IPX7防水等级，可在浴室使用，易于清洁。
+        </view>
+        
+        <view class="detail-subtitle">使用说明</view>
+        <view class="detail-paragraph">
+          1. 使用前请确保产品已充满电
+          2. 建议配合润滑液使用
+          3. 使用后请及时清洁并晾干
+          4. 存放于阴凉干燥处
+        </view>
+        
+        <view class="detail-subtitle">注意事项</view>
+        <view class="detail-paragraph">
+          - 本产品仅供成人使用
+          - 如有不适请立即停止使用
+          - 请勿与他人共用
+          - 请按照说明书正确使用
+        </view>
+      </view>
+    </view>
+  </view>
+  <!-- 商品详情描述骨架屏 -->
+  <view class="detail-section skeleton-loading" wx:else>
+    <view class="section-title">商品详情</view>
+    
+    <view class="detail-content">
+      <view class="detail-image">
+        <view class="skeleton detail-image-skeleton"></view>
+      </view>
+      
+      <view class="detail-text">
+        <view class="skeleton detail-subtitle-skeleton"></view>
+        <view class="skeleton detail-paragraph-skeleton"></view>
+        
+        <view class="skeleton detail-subtitle-skeleton"></view>
+        <view class="skeleton detail-paragraph-skeleton"></view>
+        
+        <view class="skeleton detail-subtitle-skeleton"></view>
+        <view class="skeleton detail-paragraph-skeleton"></view>
+      </view>
+    </view>
+  </view>
+
+
+
+  <!-- 底部操作栏 -->
+  <view class="bottom-bar">
+    <view class="bar-left">
+      <view class="bar-item" bindtap="onHome">
+        <icon type="home" size="24" color="#6b7280" />
+        <view class="bar-label">首页</view>
+      </view>
+      <view class="bar-item" bindtap="onCart">
+        <icon type="cart" size="24" color="#6b7280" />
+        <view class="bar-label">购物车</view>
+      </view>
+      <view class="bar-item" bindtap="onFavorite">
+        <icon type="star" size="24" color="{{isFavorite ? '#f59e0b' : '#6b7280'}}" />
+        <view class="bar-label">收藏</view>
+      </view>
+    </view>
+    
+    <view class="bar-right">
+      <button class="btn-cart" bindtap="onAddToCart">
+        加入购物车
+      </button>
+      <button class="btn-buy" bindtap="onBuyNow">
+        立即购买
+      </button>
+    </view>
+  </view>
+</view>

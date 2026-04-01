@@ -1,0 +1,104 @@
+<!-- order/confirm/confirm.wxml -->
+<view class="container">
+  <!-- 地址信息 -->
+  <view class="address-section">
+    <view class="address-header">
+      <text class="address-title">收货地址</text>
+      <text class="address-action" bindtap="chooseAddress">选择地址</text>
+    </view>
+    <view class="address-content" bindtap="chooseAddress">
+      <view wx:if="{{address}}">
+        <view class="address-name">{{address.name}} {{address.phone}}</view>
+        <view class="address-detail">{{address.province}}{{address.city}}{{address.district}}{{address.detail}}</view>
+      </view>
+      <view wx:else class="address-placeholder">
+        <text class="address-placeholder-text">请选择收货地址</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 商品信息 -->
+  <view class="goods-section">
+    <view class="section-header">
+      <text class="section-title">商品信息</text>
+    </view>
+    <view class="goods-list">
+      <view class="goods-item" wx:for="{{orderItems}}" wx:key="{{item.productId}}">
+        <view class="goods-image">
+          <image src="{{item.image}}" mode="aspectFill"></image>
+        </view>
+        <view class="goods-info">
+          <view class="goods-name">{{item.name}}</view>
+          <view class="goods-spec">{{item.spec}}</view>
+          <view class="goods-price">
+            <text class="price">¥{{item.price.toFixed(2)}}</text>
+            <text class="quantity">x{{item.quantity}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 订单信息 -->
+  <view class="order-info-section">
+    <view class="section-header">
+      <text class="section-title">订单信息</text>
+    </view>
+    <view class="order-info-list">
+      <view class="order-info-item">
+        <text class="order-info-label">商品总额</text>
+        <text class="order-info-value">¥{{orderInfo.subtotal.toFixed(2)}}</text>
+      </view>
+      <view class="order-info-item">
+        <text class="order-info-label">运费</text>
+        <text class="order-info-value">¥{{orderInfo.shippingFee.toFixed(2)}}</text>
+      </view>
+      <view class="order-info-item">
+        <text class="order-info-label">优惠</text>
+        <text class="order-info-value">-¥{{orderInfo.discount.toFixed(2)}}</text>
+      </view>
+      <view class="order-info-item total">
+        <text class="order-info-label">实付金额</text>
+        <text class="order-info-value total-price">¥{{orderInfo.totalPrice.toFixed(2)}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 支付方式 -->
+  <view class="payment-section">
+    <view class="section-header">
+      <text class="section-title">支付方式</text>
+    </view>
+    <view class="payment-list">
+      <view class="payment-item" bindtap="selectPayment" data-type="wechat">
+        <view class="payment-icon">
+          <image src="/images/微信支付.png" mode="aspectFit"></image>
+        </view>
+        <view class="payment-name">微信支付</view>
+        <view class="payment-select" wx:if="{{selectedPayment === 'wechat'}}">
+          <image src="/images/选中.png" mode="aspectFit"></image>
+        </view>
+      </view>
+      <view class="payment-item" bindtap="selectPayment" data-type="alipay">
+        <view class="payment-icon">
+          <image src="/images/支付宝.png" mode="aspectFit"></image>
+        </view>
+        <view class="payment-name">支付宝</view>
+        <view class="payment-select" wx:if="{{selectedPayment === 'alipay'}}">
+          <image src="/images/选中.png" mode="aspectFit"></image>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部结算栏 -->
+  <view class="bottom-bar">
+    <view class="total-price">
+      <text class="total-label">实付：</text>
+      <text class="total-value">¥{{orderInfo.totalPrice.toFixed(2)}}</text>
+    </view>
+    <view class="submit-btn" bindtap="submitOrder">
+      <text class="submit-btn-text">提交订单</text>
+    </view>
+  </view>
+</view>

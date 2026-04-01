@@ -1,0 +1,30 @@
+<view class="container">
+  <form bindsubmit="submitAddress">
+    <view class="form-item">
+      <text class="label">收货人</text>
+      <input name="name" placeholder="请输入收货人姓名" value="{{formData.name}}" />
+    </view>
+    <view class="form-item">
+      <text class="label">手机号码</text>
+      <input name="phone" placeholder="请输入手机号码" value="{{formData.phone}}" />
+    </view>
+    <view class="form-item">
+      <text class="label">所在地区</text>
+      <view class="region-picker" bindtap="showRegionPicker">
+        <text wx:if="{{formData.province}}">{{formData.province}} {{formData.city}} {{formData.district}}</text>
+        <text wx:else class="placeholder">请选择地区</text>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">详细地址</text>
+      <textarea name="detailAddress" placeholder="请输入详细地址" value="{{formData.detailAddress}}" />
+    </view>
+    <view class="form-item checkbox-item">
+      <checkbox-group name="isDefault">
+        <checkbox value="true" checked="{{formData.isDefault}}" />
+      </checkbox-group>
+      <text>设为默认地址</text>
+    </view>
+    <button form-type="submit" class="submit-btn">保存</button>
+  </form>
+</view>

@@ -1,0 +1,67 @@
+<!-- profile.wxml -->
+<view class="profile-page">
+  <view class="nav-bar">
+    <view class="nav-left" bindtap="onBack">
+      <icon type="left" size="28" color="#1f2937" />
+    </view>
+    <view class="nav-title">个人信息</view>
+    <view class="nav-right">
+      <text bindtap="onSave" class="save-btn">保存</text>
+    </view>
+  </view>
+  
+  <view class="profile-content">
+    <!-- 头像 -->
+    <view class="profile-item avatar-item">
+      <view class="item-label">头像</view>
+      <view class="avatar-container" bindtap="onChooseAvatar">
+        <image src="{{userInfo.avatar || '/images/我的.png'}}" class="avatar" mode="aspectFill" />
+        <view class="avatar-upload">
+          <icon type="camera" size="24" color="#ffffff" />
+        </view>
+      </view>
+    </view>
+    
+    <!-- 昵称 -->
+    <view class="profile-item">
+      <view class="item-label">昵称</view>
+      <input 
+        type="text" 
+        value="{{userInfo.nickname}}" 
+        bindinput="onNicknameInput"
+        class="item-input"
+        placeholder="请输入昵称"
+      />
+    </view>
+    
+    <!-- 用户名 -->
+    <view class="profile-item">
+      <view class="item-label">用户名</view>
+      <text class="item-value">{{userInfo.username}}</text>
+    </view>
+    
+    <!-- 性别 -->
+    <view class="profile-item" bindtap="showGenderPicker">
+      <view class="item-label">性别</view>
+      <view class="item-value">
+        <text>{{genderText}}</text>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+    </view>
+    
+    <!-- 生日 -->
+    <view class="profile-item" bindtap="showDatePicker">
+      <view class="item-label">生日</view>
+      <view class="item-value">
+        <text>{{userInfo.birthday || '请选择'}}</text>
+        <icon type="right" size="16" color="#9ca3af" />
+      </view>
+    </view>
+    
+    <!-- 手机号 -->
+    <view class="profile-item">
+      <view class="item-label">手机号</view>
+      <text class="item-value">{{userInfo.phone || '未设置'}}</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,472 @@
+/* mine.wxss */
+:root {
+  --primary-color: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+  --error-color: #ef4444;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --border-light: #e5e7eb;
+  --border-medium: #d1d5db;
+  --border-dark: #9ca3af;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.mine-page {
+  min-height: 100vh;
+  background-color: var(--bg-secondary);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* 顶部导航栏 */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 48px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+.nav-left,
+.nav-right {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.nav-left:active,
+.nav-right:active {
+  background-color: var(--bg-secondary);
+  border-radius: 50%;
+}
+
+.nav-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 用户信息区域 */
+.user-section {
+  background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
+  padding: 24px 16px;
+  margin-bottom: 16px;
+  border-radius: 0 0 24px 24px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.user-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+  border-radius: 0 0 24px 24px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.user-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 16px;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+.user-avatar:active {
+  transform: scale(1.05);
+}
+
+.user-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.user-details {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.user-nickname {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.user-username {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.login-prompt {
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.login-text {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-right: 16px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* 订单状态导航 */
+.order-section {
+  background-color: var(--bg-primary);
+  padding: 16px;
+  margin: 0 16px 16px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background-color: var(--primary-color);
+  border-radius: 1px;
+}
+
+.section-more {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.section-more:active {
+  background-color: var(--bg-secondary);
+}
+
+.order-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: relative;
+  z-index: 1;
+}
+
+.order-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.order-item:active {
+  background-color: var(--bg-secondary);
+  transform: translateY(-2px);
+}
+
+.order-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--bg-tertiary);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.order-icon image {
+  width: 24px;
+  height: 24px;
+  transition: all 0.2s ease;
+}
+
+.order-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.order-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background-color: var(--error-color);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.3);
+  transition: all 0.2s ease;
+}
+
+/* 功能菜单 */
+.menu-section {
+  margin: 0 16px 24px;
+}
+
+.menu-card {
+  background-color: var(--bg-primary);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:active {
+  background-color: var(--bg-secondary);
+  transform: translateX(4px);
+}
+
+.menu-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.menu-icon image {
+  width: 24px;
+  height: 24px;
+  transition: all 0.2s ease;
+}
+
+.menu-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.menu-item icon:last-child {
+  transition: all 0.2s ease;
+}
+
+/* 底部版本信息 */
+.version-section {
+  padding: 0 16px 32px;
+  text-align: center;
+}
+
+.version-text {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+  transition: all 0.2s ease;
+}
+
+.copyright-text {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  transition: all 0.2s ease;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-section {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.order-section {
+  animation: fadeIn 0.5s ease-out 0.1s both;
+}
+
+.menu-card:nth-child(1) {
+  animation: fadeIn 0.5s ease-out 0.2s both;
+}
+
+.menu-card:nth-child(2) {
+  animation: fadeIn 0.5s ease-out 0.3s both;
+}
+
+.menu-card:nth-child(3) {
+  animation: fadeIn 0.5s ease-out 0.4s both;
+}
+
+.version-section {
+  animation: fadeIn 0.5s ease-out 0.5s both;
+}
+
+.menu-item {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.menu-item:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.menu-item:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+/* 响应式设计 */
+@media (max-width: 375px) {
+  .user-section {
+    padding: 20px 12px;
+  }
+  
+  .order-section {
+    padding: 12px;
+    margin: 0 12px 12px;
+  }
+  
+  .menu-section {
+    margin: 0 12px 20px;
+  }
+  
+  .menu-item {
+    padding: 12px;
+  }
+  
+  .user-avatar {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .order-icon {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .order-icon image {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .menu-icon {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .menu-icon image {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .user-nickname {
+    font-size: 16px;
+  }
+  
+  .section-title {
+    font-size: 15px;
+  }
+  
+  .menu-label {
+    font-size: 13px;
+  }
+  
+  .version-section {
+    padding: 0 12px 24px;
+  }
+}

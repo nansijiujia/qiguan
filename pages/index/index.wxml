@@ -1,0 +1,493 @@
+<!-- index.wxml -->
+<view class="page-container">
+  <!-- 居中搜索栏 -->
+  <view class="search-container">
+    <view class="search-input-container">
+      <icon class="search-icon" type="search" size="16" color="#9ca3af" />
+      <input 
+        class="search-input" 
+        placeholder="搜索商品" 
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+      />
+    </view>
+  </view>
+
+  <!-- 轮播图 -->
+  <view class="banner-section" wx:if="{{!loading}}">
+    <swiper 
+      class="banner-swiper" 
+      autoplay 
+      interval="3000" 
+      duration="500" 
+      indicator-dots 
+      indicator-active-color="#6366f1"
+      indicator-color="rgba(99, 102, 241, 0.3)"
+      circular
+    >
+      <swiper-item>
+        <view class="banner-item">
+          <view class="image-container">
+            <image 
+              class="banner-image {{loadedImages['banner1'] ? 'loaded' : 'loading'}}" 
+              src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20ecommerce%20banner%20promotion%20sex%20toys%20elegant%20design%20dark%20background&image_size=landscape_16_9"
+              mode="aspectFill"
+              data-key="banner1"
+              bindload="onImageLoad"
+              binderror="onImageError"
+            />
+            <view class="image-skeleton" wx:if="{{!loadedImages['banner1']}}"></view>
+          </view>
+          <view class="banner-content fade-in">
+            <view class="banner-tag">限时活动</view>
+            <view class="banner-title">新品上市</view>
+            <view class="banner-subtitle">探索全新产品体验</view>
+            <button class="banner-btn" bindtap="goToActivityList">立即查看</button>
+          </view>
+        </view>
+      </swiper-item>
+      <swiper-item>
+        <view class="banner-item">
+          <view class="image-container">
+            <image 
+              class="banner-image {{loadedImages['banner2'] ? 'loaded' : 'loading'}}" 
+              src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20ecommerce%20banner%20discount%20sale%20elegant%20pink%20theme%20luxury&image_size=landscape_16_9"
+              mode="aspectFill"
+              data-key="banner2"
+              bindload="onImageLoad"
+              binderror="onImageError"
+            />
+            <view class="image-skeleton" wx:if="{{!loadedImages['banner2']}}"></view>
+          </view>
+          <view class="banner-content fade-in">
+            <view class="banner-tag">限时特惠</view>
+            <view class="banner-title">全场5折起</view>
+            <view class="banner-subtitle">限时优惠，错过再等一年</view>
+            <button class="banner-btn" bindtap="onViewAllPromotions">立即抢购</button>
+          </view>
+        </view>
+      </swiper-item>
+      <swiper-item>
+        <view class="banner-item">
+          <view class="image-container">
+            <image 
+              class="banner-image {{loadedImages['banner3'] ? 'loaded' : 'loading'}}" 
+              src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20ecommerce%20banner%20luxury%20sex%20toys%20elegant%20minimalist%20design&image_size=landscape_16_9"
+              mode="aspectFill"
+              data-key="banner3"
+              bindload="onImageLoad"
+              binderror="onImageError"
+            />
+            <view class="image-skeleton" wx:if="{{!loadedImages['banner3']}}"></view>
+          </view>
+          <view class="banner-content fade-in">
+            <view class="banner-tag">限时优惠</view>
+            <view class="banner-title">全场折扣</view>
+            <view class="banner-subtitle">全场8折优惠</view>
+            <button class="banner-btn" bindtap="onViewAllGoods">立即查看</button>
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
+  </view>
+  <!-- 轮播图骨架屏 -->
+  <view class="banner-section skeleton-loading" wx:else>
+    <view class="banner-swiper skeleton"></view>
+  </view>
+
+  <!-- 分类导航 -->
+  <view class="category-section" wx:if="{{!loading}}">
+    <view class="section-header">
+      <view class="section-title">商品分类</view>
+      <view class="section-more" bindtap="onViewAllCategories">查看全部 <icon type="right" size="14" color="#6b7280" /></view>
+    </view>
+    <view class="category-grid">
+      <view class="category-item" bindtap="onCategoryClick" data-id="1" animation="{{animationData}}">
+        <view class="category-icon">🎮</view>
+        <view class="category-name">成人玩具</view>
+      </view>
+      <view class="category-item" bindtap="onCategoryClick" data-id="2" animation="{{animationData}}">
+        <view class="category-icon">👙</view>
+        <view class="category-name">性感内衣</view>
+      </view>
+      <view class="category-item" bindtap="onCategoryClick" data-id="3" animation="{{animationData}}">
+        <view class="category-icon">💧</view>
+        <view class="category-name">润滑液</view>
+      </view>
+      <view class="category-item" bindtap="onCategoryClick" data-id="4" animation="{{animationData}}">
+        <view class="category-icon">🔒</view>
+        <view class="category-name">避孕套</view>
+      </view>
+      <view class="category-item" bindtap="onCategoryClick" data-id="5" animation="{{animationData}}">
+        <view class="category-icon">⏰</view>
+        <view class="category-name">延时产品</view>
+      </view>
+      <view class="category-item" bindtap="onCategoryClick" data-id="6" animation="{{animationData}}">
+        <view class="category-icon">✨</view>
+        <view class="category-name">情趣用品</view>
+      </view>
+      <view class="category-item" bindtap="onCategoryClick" data-id="7" animation="{{animationData}}">
+        <view class="category-icon">🛏️</view>
+        <view class="category-name">情趣家具</view>
+      </view>
+      <view class="category-item" bindtap="onCategoryClick" data-id="8" animation="{{animationData}}">
+        <view class="category-icon">📦</view>
+        <view class="category-name">其他</view>
+      </view>
+    </view>
+  </view>
+  <!-- 分类导航骨架屏 -->
+  <view class="category-section skeleton-loading" wx:else>
+    <view class="section-header">
+      <view class="skeleton section-title-skeleton"></view>
+      <view class="skeleton section-more-skeleton"></view>
+    </view>
+    <view class="category-grid">
+      <view class="category-item" wx:for="{{[1,2,3,4,5,6,7,8]}}" wx:key="item">
+        <view class="skeleton category-icon-skeleton"></view>
+        <view class="skeleton category-name-skeleton"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 推荐商品 -->
+  <view class="recommended-section" wx:if="{{!loading}}">
+    <view class="section-header">
+      <view class="section-title">推荐商品</view>
+      <view class="section-more" bindtap="onViewAllGoods">查看全部 <icon type="right" size="14" color="#6b7280" /></view>
+    </view>
+    <view class="goods-grid">
+      <view class="goods-item" bindtap="onGoodsClick" data-id="1">
+        <view class="goods-image-container">
+          <image 
+            class="goods-image {{loadedImages['goods1'] ? 'loaded' : 'loading'}}" 
+            src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20sex%20toy%20product%20elegant%20design%20white%20background%20minimalist&image_size=square"
+            mode="aspectFill"
+            data-key="goods1"
+            bindload="onImageLoad"
+            binderror="onImageError"
+          />
+          <view class="image-skeleton" wx:if="{{!loadedImages['goods1']}}"></view>
+          <view class="goods-badge">新品</view>
+        </view>
+        <view class="goods-info">
+          <view class="goods-title">高级按摩器 多频振动 静音设计</view>
+          <view class="goods-footer">
+            <view class="goods-price-container">
+              <view class="goods-price">¥299</view>
+              <view class="goods-original-price">¥399</view>
+            </view>
+            <button class="add-to-cart-btn" bindtap="onAddToCart" data-id="1" animation="{{animationData}}">
+              <icon type="cart" size="14" color="#ffffff" />
+            </button>
+          </view>
+        </view>
+      </view>
+      <view class="goods-item" bindtap="onGoodsClick" data-id="2">
+        <view class="goods-image-container">
+          <image 
+            class="goods-image {{loadedImages['goods2'] ? 'loaded' : 'loading'}}" 
+            src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=elegant%20lingerie%20set%20product%20photography%20white%20background%20luxury&image_size=square"
+            mode="aspectFill"
+            data-key="goods2"
+            bindload="onImageLoad"
+            binderror="onImageError"
+          />
+          <view class="image-skeleton" wx:if="{{!loadedImages['goods2']}}"></view>
+          <view class="goods-badge hot">热卖</view>
+        </view>
+        <view class="goods-info">
+          <view class="goods-title">性感内衣套装 舒适透气</view>
+          <view class="goods-footer">
+            <view class="goods-price-container">
+              <view class="goods-price">¥159</view>
+              <view class="goods-original-price">¥259</view>
+            </view>
+            <button class="add-to-cart-btn" bindtap="onAddToCart" data-id="2" animation="{{animationData}}">
+              <icon type="cart" size="14" color="#ffffff" />
+            </button>
+          </view>
+        </view>
+      </view>
+      <view class="goods-item" bindtap="onGoodsClick" data-id="3">
+        <view class="goods-image-container">
+          <image 
+            class="goods-image {{loadedImages['goods3'] ? 'loaded' : 'loading'}}" 
+            src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=lubricant%20bottle%20product%20elegant%20design%20white%20background%20premium&image_size=square"
+            mode="aspectFill"
+            data-key="goods3"
+            bindload="onImageLoad"
+            binderror="onImageError"
+          />
+          <view class="image-skeleton" wx:if="{{!loadedImages['goods3']}}"></view>
+          <view class="goods-badge bestseller">畅销</view>
+        </view>
+        <view class="goods-info">
+          <view class="goods-title">水溶性润滑液 天然成分</view>
+          <view class="goods-footer">
+            <view class="goods-price-container">
+              <view class="goods-price">¥89</view>
+              <view class="goods-original-price">¥129</view>
+            </view>
+            <button class="add-to-cart-btn" bindtap="onAddToCart" data-id="3" animation="{{animationData}}">
+              <icon type="cart" size="14" color="#ffffff" />
+            </button>
+          </view>
+        </view>
+      </view>
+      <view class="goods-item" bindtap="onGoodsClick" data-id="4">
+        <view class="goods-image-container">
+          <image 
+            class="goods-image {{loadedImages['goods4'] ? 'loaded' : 'loading'}}" 
+            src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=condom%20package%20product%20modern%20design%20white%20background%20sleek&image_size=square"
+            mode="aspectFill"
+            data-key="goods4"
+            bindload="onImageLoad"
+            binderror="onImageError"
+          />
+          <view class="image-skeleton" wx:if="{{!loadedImages['goods4']}}"></view>
+          <view class="goods-badge discount">特惠</view>
+        </view>
+        <view class="goods-info">
+          <view class="goods-title">超薄避孕套 12只装</view>
+          <view class="goods-footer">
+            <view class="goods-price-container">
+              <view class="goods-price">¥69</view>
+              <view class="goods-original-price">¥99</view>
+            </view>
+            <button class="add-to-cart-btn" bindtap="onAddToCart" data-id="4" animation="{{animationData}}">
+              <icon type="cart" size="14" color="#ffffff" />
+            </button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <!-- 推荐商品骨架屏 -->
+  <view class="recommended-section skeleton-loading" wx:else>
+    <view class="section-header">
+      <view class="skeleton section-title-skeleton"></view>
+      <view class="skeleton section-more-skeleton"></view>
+    </view>
+    <view class="goods-grid">
+      <view class="goods-item" wx:for="{{[1,2,3,4]}}" wx:key="item">
+        <view class="goods-image-container">
+          <view class="skeleton goods-image-skeleton"></view>
+        </view>
+        <view class="goods-info">
+          <view class="skeleton goods-title-skeleton"></view>
+          <view class="skeleton goods-price-skeleton"></view>
+          <view class="skeleton goods-sales-skeleton"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 促销商品 -->
+  <view class="promotion-section" wx:if="{{!loading}}">
+    <view class="section-header">
+      <view class="section-title">限时特惠</view>
+      <view class="section-more" bindtap="onViewAllPromotions">查看全部 <icon type="right" size="14" color="#6b7280" /></view>
+    </view>
+    <view class="promotion-container">
+      <view class="promotion-item" bindtap="onGoodsClick" data-id="5">
+        <view class="promotion-image-container">
+          <swiper 
+            class="promotion-swiper" 
+            autoplay 
+            interval="3000" 
+            duration="500" 
+            indicator-dots 
+            indicator-active-color="#6366f1"
+            indicator-color="rgba(99, 102, 241, 0.3)"
+            circular
+          >
+            <swiper-item>
+              <image 
+                class="promotion-image {{loadedImages['promotion1'] ? 'loaded' : 'loading'}}" 
+                src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=delay%20spray%20product%20elegant%20design%20white%20background%20premium&image_size=portrait_4_3"
+                mode="aspectFill"
+                data-key="promotion1"
+                bindload="onImageLoad"
+                binderror="onImageError"
+              />
+              <view class="image-skeleton" wx:if="{{!loadedImages['promotion1']}}"></view>
+            </swiper-item>
+            <swiper-item>
+              <image 
+                class="promotion-image {{loadedImages['promotion2'] ? 'loaded' : 'loading'}}" 
+                src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sex%20toy%20vibrator%20product%20elegant%20design%20white%20background&image_size=portrait_4_3"
+                mode="aspectFill"
+                data-key="promotion2"
+                bindload="onImageLoad"
+                binderror="onImageError"
+              />
+              <view class="image-skeleton" wx:if="{{!loadedImages['promotion2']}}"></view>
+            </swiper-item>
+            <swiper-item>
+              <image 
+                class="promotion-image {{loadedImages['promotion3'] ? 'loaded' : 'loading'}}" 
+                src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=lubricant%20bottle%20product%20elegant%20design%20white%20background%20premium&image_size=portrait_4_3"
+                mode="aspectFill"
+                data-key="promotion3"
+                bindload="onImageLoad"
+                binderror="onImageError"
+              />
+              <view class="image-skeleton" wx:if="{{!loadedImages['promotion3']}}"></view>
+            </swiper-item>
+          </swiper>
+          <view class="promotion-tag">限时</view>
+        </view>
+        <view class="promotion-title">延时喷剂 持久不麻木</view>
+        <view class="promotion-price-container">
+          <view class="promotion-price">¥199</view>
+          <view class="promotion-original-price">¥299</view>
+        </view>
+        <view class="promotion-discount">
+          <view class="discount-tag">6.7折</view>
+          <view class="discount-time">剩余{{countdown.hours}}:{{countdown.minutes}}:{{countdown.seconds}}</view>
+        </view>
+        <view class="promotion-buttons">
+          <button class="buy-now-btn" bindtap="onBuyNow" data-id="5">立即购买</button>
+          <button class="add-to-cart-btn" bindtap="onAddToCart" data-id="5" animation="{{animationData}}">加入购物车</button>
+        </view>
+      </view>
+    </view>
+  </view>
+  <!-- 促销商品骨架屏 -->
+  <view class="promotion-section skeleton-loading" wx:else>
+    <view class="section-header">
+      <view class="skeleton section-title-skeleton"></view>
+      <view class="skeleton section-more-skeleton"></view>
+    </view>
+    <view class="promotion-container">
+      <view class="promotion-item">
+        <view class="promotion-image-container">
+          <view class="skeleton promotion-image-skeleton"></view>
+        </view>
+        <view class="promotion-info">
+          <view class="skeleton promotion-title-skeleton"></view>
+          <view class="skeleton promotion-price-skeleton"></view>
+          <view class="skeleton promotion-discount-skeleton"></view>
+          <view class="skeleton promotion-buttons-skeleton"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 热门商品 -->
+  <view class="hot-section" wx:if="{{!loading}}">
+    <view class="section-header">
+      <view class="section-title">热门商品</view>
+      <view class="section-more" bindtap="onViewAllHotGoods">查看全部 <icon type="right" size="14" color="#6b7280" /></view>
+    </view>
+    <view class="hot-list">
+      <view class="hot-item" bindtap="onGoodsClick" data-id="6">
+        <view class="hot-image-container">
+          <image 
+            class="hot-image {{loadedImages['hot1'] ? 'loaded' : 'loading'}}" 
+            src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sex%20toy%20product%20elegant%20design%20white%20background%20premium&image_size=square"
+            mode="aspectFill"
+            data-key="hot1"
+            bindload="onImageLoad"
+            binderror="onImageError"
+          />
+          <view class="image-skeleton" wx:if="{{!loadedImages['hot1']}}"></view>
+        </view>
+        <view class="hot-info">
+          <view class="hot-title">仿真按摩器 硅胶材质</view>
+          <view class="hot-price">¥399</view>
+          <view class="hot-rating">
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <view class="hot-rating-text">5.0</view>
+          </view>
+        </view>
+      </view>
+      <view class="hot-item" bindtap="onGoodsClick" data-id="7">
+        <view class="hot-image-container">
+          <image 
+            class="hot-image {{loadedImages['hot2'] ? 'loaded' : 'loading'}}" 
+            src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=massage%20oil%20bottle%20product%20elegant%20design%20white%20background%20luxury&image_size=square"
+            mode="aspectFill"
+            data-key="hot2"
+            bindload="onImageLoad"
+            binderror="onImageError"
+          />
+          <view class="image-skeleton" wx:if="{{!loadedImages['hot2']}}"></view>
+        </view>
+        <view class="hot-info">
+          <view class="hot-title">香氛按摩油 天然成分</view>
+          <view class="hot-price">¥139</view>
+          <view class="hot-rating">
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#e5e7eb" />
+            <view class="hot-rating-text">4.0</view>
+          </view>
+        </view>
+      </view>
+      <view class="hot-item" bindtap="onGoodsClick" data-id="8">
+        <view class="hot-image-container">
+          <image 
+            class="hot-image {{loadedImages['hot3'] ? 'loaded' : 'loading'}}" 
+            src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sex%20toy%20vibrator%20product%20elegant%20design%20white%20background&image_size=square"
+            mode="aspectFill"
+            data-key="hot3"
+            bindload="onImageLoad"
+            binderror="onImageError"
+          />
+          <view class="image-skeleton" wx:if="{{!loadedImages['hot3']}}"></view>
+        </view>
+        <view class="hot-info">
+          <view class="hot-title">多频振动器 静音设计</view>
+          <view class="hot-price">¥259</view>
+          <view class="hot-rating">
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <icon type="star" size="12" color="#f59e0b" />
+            <view class="hot-rating-text">5.0</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <!-- 热门商品骨架屏 -->
+  <view class="hot-section skeleton-loading" wx:else>
+    <view class="section-header">
+      <view class="skeleton section-title-skeleton"></view>
+      <view class="skeleton section-more-skeleton"></view>
+    </view>
+    <view class="hot-list">
+      <view class="hot-item" wx:for="{{[1,2,3]}}" wx:key="item">
+        <view class="hot-image-container">
+          <view class="skeleton hot-image-skeleton"></view>
+        </view>
+        <view class="hot-info">
+          <view class="skeleton hot-title-skeleton"></view>
+          <view class="skeleton hot-price-skeleton"></view>
+          <view class="skeleton hot-rating-skeleton"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{loading}}">
+    <view class="loading"></view>
+  </view>
+  <view class="no-more" wx:else>
+    <view class="no-more-icon">🛍️</view>
+    <view class="no-more-text">没有更多商品了</view>
+  </view>
+
+
+</view>

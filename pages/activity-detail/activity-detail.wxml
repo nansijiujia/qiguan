@@ -1,0 +1,114 @@
+<!-- activity-detail.wxml - 活动详情页面 -->
+<view class="activity-detail-container">
+  <!-- 顶部导航栏 -->
+  <view class="top-nav">
+    <view class="nav-left" bindtap="goBack">
+      <icon type="arrowleft" size="20" color="#1f2937" />
+    </view>
+    <view class="nav-title">活动详情</view>
+    <view class="nav-right">
+      <icon type="share" size="20" color="#1f2937" bindtap="onShare" />
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 错误状态 -->
+  <view wx:elif="{{error}}" class="error-container">
+    <text class="error-icon">⚠️</text>
+    <text class="error-message">{{errorMessage}}</text>
+    <button class="retry-button" bindtap="reloadData">重新加载</button>
+    <button class="back-button" bindtap="goBack">返回</button>
+  </view>
+
+  <!-- 活动详情 -->
+  <view wx:else class="activity-content">
+    <!-- 活动头部 -->
+    <view class="activity-header">
+      <!-- 活动类型标签 -->
+      <view class="activity-type" style="background-color: {{activity.typeConfig.color}}">
+        <text class="type-icon">{{activity.typeConfig.icon}}</text>
+        <text class="type-text">{{activity.typeConfig.text}}</text>
+      </view>
+
+      <!-- 活动标题 -->
+      <text class="activity-title">{{activity.name}}</text>
+
+      <!-- 活动时间 -->
+      <view class="activity-time">
+        <text class="time-icon">⏰</text>
+        <text class="time-text">活动时间：{{activity.startDate}} 至 {{activity.endDate}}</text>
+      </view>
+    </view>
+
+    <!-- 活动详情内容 -->
+    <view class="activity-body">
+      <!-- 活动描述 -->
+      <view class="section">
+        <text class="section-title">活动详情</text>
+        <text class="section-content">{{activity.description || '暂无详细描述'}}</text>
+      </view>
+
+      <!-- 活动规则 -->
+      <view class="section">
+        <text class="section-title">活动规则</text>
+        <view class="rule-list">
+          <view wx:if="{{activity.type === 'full_reduction' || activity.type === 'full_gift' || activity.type === 'full_free_shipping'}}" class="rule-item">
+            <text class="rule-icon">•</text>
+            <text class="rule-text">满 {{activity.minSpend}} 元可参与</text>
+          </view>
+          
+          <view wx:if="{{activity.type === 'full_reduction'}}" class="rule-item">
+            <text class="rule-icon">•</text>
+            <text class="rule-text">满减金额：{{activity.discountValue}} 元</text>
+          </view>
+          
+          <view wx:if="{{activity.type === 'flash_sale'}}" class="rule-item">
+            <text class="rule-icon">•</text>
+            <text class="rule-text">折扣率：{{activity.discountRate * 10}} 折</text>
+          </view>
+          
+          <view wx:if="{{activity.type === 'full_gift'}}" class="rule-item">
+            <text class="rule-icon">•</text>
+            <text class="rule-text">赠送商品：ID {{activity.giftProductId}}</text>
+          </view>
+          
+          <view wx:if="{{activity.type === 'full_gift'}}" class="rule-item">
+            <text class="rule-icon">•</text>
+            <text class="rule-text">赠送数量：{{activity.giftQuantity}} 件</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 活动统计 -->
+      <view class="section stats-section">
+        <text class="section-title">活动统计</text>
+        <view class="stats-grid">
+          <view class="stat-card">
+            <text class="stat-number">{{activity.views}}</text>
+            <text class="stat-label">浏览次数</text>
+          </view>
+          <view class="stat-card">
+            <text class="stat-number">{{activity.participationCount}}</text>
+            <text class="stat-label">参与人数</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作栏 -->
+    <view class="bottom-bar">
+      <button class="participate-button" 
+              bindtap="participateActivity" 
+              disabled="{{participating}}"
+              loading="{{participating}}">
+        <text class="button-icon">🎯</text>
+        <text class="button-text">立即参与</text>
+      </button>
+    </view>
+  </view>
+</view>
