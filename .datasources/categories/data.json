@@ -1,0 +1,26 @@
+[
+  {
+    "name": "手机数码",
+    "icon": "📱",
+    "sort": 1,
+    "status": "active"
+  },
+  {
+    "name": "电脑办公",
+    "icon": "💻",
+    "sort": 2,
+    "status": "active"
+  },
+  {
+    "name": "数码配件",
+    "icon": "🎧",
+    "sort": 3,
+    "status": "active"
+  },
+  {
+    "name": "家居生活",
+    "icon": "🏠",
+    "sort": 4,
+    "status": "active"
+  }
+]

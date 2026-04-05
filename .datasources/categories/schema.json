@@ -1,0 +1,41 @@
+{
+  "name": "categories",
+  "displayName": "商品分类",
+  "description": "商品分类管理",
+  "fields": [
+    {
+      "name": "name",
+      "displayName": "分类名称",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "icon",
+      "displayName": "分类图标",
+      "type": "string",
+      "required": false
+    },
+    {
+      "name": "sort",
+      "displayName": "排序",
+      "type": "number",
+      "required": true,
+      "defaultValue": 0
+    },
+    {
+      "name": "status",
+      "displayName": "状态",
+      "type": "string",
+      "required": true,
+      "defaultValue": "active",
+      "enum": ["active", "inactive"]
+    },
+    {
+      "name": "createdAt",
+      "displayName": "创建时间",
+      "type": "timestamp",
+      "required": true,
+      "autoGenerate": true
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "name": "products",
+  "displayName": "商品管理",
+  "description": "商品信息管理",
+  "fields": [
+    {
+      "name": "name",
+      "displayName": "商品名称",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "description",
+      "displayName": "商品描述",
+      "type": "string",
+      "required": false
+    },
+    {
+      "name": "price",
+      "displayName": "价格",
+      "type": "number",
+      "required": true
+    },
+    {
+      "name": "originalPrice",
+      "displayName": "原价",
+      "type": "number",
+      "required": false
+    },
+    {
+      "name": "stock",
+      "displayName": "库存",
+      "type": "number",
+      "required": true,
+      "defaultValue": 0
+    },
+    {
+      "name": "images",
+      "displayName": "商品图片",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    {
+      "name": "category",
+      "displayName": "分类",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "status",
+      "displayName": "状态",
+      "type": "string",
+      "required": true,
+      "defaultValue": "active",
+      "enum": ["active", "inactive", "soldout"]
+    },
+    {
+      "name": "createdAt",
+      "displayName": "创建时间",
+      "type": "timestamp",
+      "required": true,
+      "autoGenerate": true
+    },
+    {
+      "name": "updatedAt",
+      "displayName": "更新时间",
+      "type": "timestamp",
+      "required": true,
+      "autoGenerate": true
+    }
+  ]
+}
