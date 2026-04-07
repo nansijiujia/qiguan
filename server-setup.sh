@@ -16,6 +16,7 @@ cat > repo.git/hooks/post-receive << 'HOOK'
 #!/bin/bash
 DEPLOY_DIR=/root/绮管后台
 FRONTEND_DIR=$DEPLOY_DIR/qiguanqianduan
+WEB_ROOT=/var/www/qimengzhiyue
 
 echo ">>> 开始自动部署..."
 
@@ -30,6 +31,15 @@ echo ">>> 安装前端依赖并构建..."
 cd $FRONTEND_DIR
 npm install
 npm run build
+
+echo ">>> 部署前端静态文件..."
+mkdir -p $WEB_ROOT
+rm -rf $WEB_ROOT/*
+cp -r $FRONTEND_DIR/dist/* $WEB_ROOT/
+
+echo ">>> 设置文件权限..."
+chown -R nginx:nginx $WEB_ROOT
+chmod -R 755 $WEB_ROOT
 
 echo ">>> 重启后端服务（pm2）..."
 cd $DEPLOY_DIR
@@ -78,7 +88,7 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
 
-    root /root/绮管后台/qiguanqianduan/dist;
+    root /var/www/qimengzhiyue;
     index index.html;
 
     location / {
