@@ -1,0 +1,36 @@
+{
+  "envId": "nansijiujia-1gaeh8qpb9ad09a5",
+  "version": "2.0",
+  "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
+  "functionRoot": "./functions",
+  "functions": [
+    {
+      "name": "ecommerce-backend",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "memory": 256,
+      "installDependency": true,
+      "triggers": [
+        {
+          "name": "httpTrigger",
+          "type": "http",
+          "config": {
+            "path": "/api",
+            "method": [
+              "GET",
+              "POST",
+              "PUT",
+              "DELETE",
+              "OPTIONS"
+            ],
+            "enableResponseBuffering": false
+          }
+        }
+      ]
+    }
+  ],
+  "cloudrun": {
+    "name": "qiguan"
+  }
+}

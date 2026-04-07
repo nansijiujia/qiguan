@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+export PORT=${PORT:-3000}
+export NODE_ENV=${NODE_ENV:-production}
+
+echo "Starting on port: $PORT"
+
+exec node index.js

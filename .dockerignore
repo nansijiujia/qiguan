@@ -1,0 +1,45 @@
+# Environment files (should not be deployed)
+.env
+.env.local
+.env.*.local
+
+# Dependencies (will be installed in container)
+node_modules
+
+# Build outputs
+ecommerce-admin/dist
+ecommerce-admin/node_modules
+
+# Database files
+*.db
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Documentation
+README.md
+CODEBUDDY.md
+
+# Trae/CodeBuddy config
+.codebuddy
+.trae
+.rules
+
+# Test files
+test.js
+test-request.js
+
+# Temporary files
+*.tmp
+*.temp

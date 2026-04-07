@@ -1,0 +1,55 @@
+# Environment files - NEVER deploy these!
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Dependencies - installed in container
+node_modules
+
+# Build outputs
+ecommerce-admin/dist
+ecommerce-admin/node_modules
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs
+*.log
+
+# Documentation (optional)
+README.md
+CODEBUDDY.md
+
+# Trae/CodeBuddy config (not needed in production)
+.codebuddy
+.trae
+.rules
+
+# Test files
+test.js
+test-request.js
+index.minimal.js
+
+# Temporary files
+*.tmp
+*.temp
+.cache
+
+# Git related
+.git
+.gitignore
