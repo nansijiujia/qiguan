@@ -14,6 +14,13 @@ echo ""
 echo "[2/7] 创建post-receive自动部署钩子..."
 cat > repo.git/hooks/post-receive << 'HOOK'
 #!/bin/bash
+
+# 加载环境变量（解决npm/pm2 command not found问题）
+export PATH="/usr/local/bin:/usr/bin:/root/.nvm/versions/node/*/bin:$PATH"
+[ -f /etc/profile ] && source /etc/profile
+[ -f ~/.bashrc ] && source ~/.bashrc 2>/dev/null || true
+[ -f ~/.nvm/nvm.sh ] && source ~/.nvm/nvm.sh 2>/dev/null || true
+
 DEPLOY_DIR=/root/绮管后台
 FRONTEND_DIR=$DEPLOY_DIR/qiguanqianduan
 WEB_ROOT=/var/www/qimengzhiyue
