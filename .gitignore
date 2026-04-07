@@ -1,3 +1,8 @@
-
-# Environment variables
+node_modules/
+dist/
 .env.local
+.env
+*.log
+.DS_Store
+Thumbs.db
+.trae/
