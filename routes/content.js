@@ -11,7 +11,7 @@ router.get('/content/homepage', async (req, res) => {
         { id: 1, image: 'https://example.com/banner1.jpg', link: '/products/category/1' },
         { id: 2, image: 'https://example.com/banner2.jpg', link: '/products/category/2' }
       ],
-      recommendations: await query('SELECT * FROM products WHERE status = ? ORDER BY RANDOM() LIMIT 6', ['active']),
+      recommendations: await query('SELECT * FROM products WHERE status = ? ORDER BY RAND() LIMIT 6', ['active']),
       hotProducts: await query('SELECT * FROM products WHERE status = ? ORDER BY stock DESC LIMIT 6', ['active']),
       promotions: [
         { id: 1, title: '限时特惠', description: '全场满100减20', link: '/products' },
@@ -44,7 +44,7 @@ router.get('/content/homepage/banners', (req, res) => {
 // 获取首页推荐
 router.get('/content/homepage/recommendations', async (req, res) => {
   try {
-    const products = await query('SELECT * FROM products WHERE status = ? ORDER BY RANDOM() LIMIT 10', ['active']);
+    const products = await query('SELECT * FROM products WHERE status = ? ORDER BY RAND() LIMIT 10', ['active']);
     res.json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });

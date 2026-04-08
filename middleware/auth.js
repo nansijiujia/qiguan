@@ -1,6 +1,13 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-at-least-32-characters-long!!!';
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    '[AUTH ERROR] 缺少必需的环境变量 JWT_SECRET. ' +
+    '请在 .env 文件中配置安全的JWT密钥（至少32个字符），不要使用硬编码密钥（安全审计要求）'
+  );
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const JWT_ALGORITHM = process.env.JWT_ALGORITHM || 'HS256';
 

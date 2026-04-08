@@ -1,10 +1,12 @@
 const express = require('express');
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { query, getOne, execute } = require('../db');
 const router = express.Router();
 
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+const SALT_ROUNDS = 10;
+
+async function hashPassword(password) {
+  return await bcrypt.hash(password, SALT_ROUNDS);
 }
 
 router.get('/', async (req, res) => {
@@ -70,10 +72,10 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ success: false, message: 'Username or email already exists' });
     }
 
-    const passwordHash = hashPassword(password);
+    const passwordHash = await hashPassword(password);
     const result = await execute(
       `INSERT INTO users (username, email, password_hash, avatar, role, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
       [username, email, passwordHash, avatar || null, role || 'user', status || 'active']
     );
 
@@ -104,7 +106,7 @@ router.put('/:id', async (req, res) => {
 
     if (username !== undefined) { fields.push('username = ?'); values.push(username); }
     if (email !== undefined) { fields.push('email = ?'); values.push(email); }
-    if (password !== undefined) { fields.push('password_hash = ?'); values.push(hashPassword(password)); }
+    if (password !== undefined) { fields.push('password_hash = ?'); values.push(await hashPassword(password)); }
     if (avatar !== undefined) { fields.push('avatar = ?'); values.push(avatar); }
     if (role !== undefined) { fields.push('role = ?'); values.push(role); }
     if (status !== undefined) { fields.push('status = ?'); values.push(status); }

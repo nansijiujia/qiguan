@@ -170,7 +170,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, datetime('now'))`;
+    const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, NOW())`;
     const result = await execute(sql, [
       name,
       parent_id || null,
@@ -191,7 +191,7 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('[ERROR] Adding category:', error);
-    if (error.code === 'SQLITE_CONSTRAINT') {
+    if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({
         success: false,
         error: {
@@ -268,7 +268,7 @@ router.put('/:id', async (req, res) => {
     }
 
     params.push(id);
-    const sql = `UPDATE categories SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ?`;
+    const sql = `UPDATE categories SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {
@@ -293,7 +293,7 @@ router.put('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('[ERROR] Updating category:', error);
-    if (error.code === 'SQLITE_CONSTRAINT') {
+    if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({
         success: false,
         error: {

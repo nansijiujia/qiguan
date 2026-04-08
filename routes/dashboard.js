@@ -5,9 +5,9 @@ const { query } = require('../db');
 router.get('/overview', async (req, res) => {
   try {
     const [totalProducts, totalOrders, totalRevenue, totalUsers] = await Promise.all([
-      query('SELECT COUNT(*) as count FROM products WHERE status="active"'),
+      query("SELECT COUNT(*) as count FROM products WHERE status='active'"),
       query('SELECT COUNT(*) as count FROM orders'),
-      query('SELECT COALESCE(SUM(total_amount), 0) as revenue FROM orders WHERE status IN ("paid", "shipped", "completed")'),
+      query("SELECT COALESCE(SUM(total_amount), 0) as revenue FROM orders WHERE status IN ('paid', 'shipped', 'completed')"),
       query('SELECT COUNT(*) as count FROM users')
     ]);
 
@@ -37,11 +37,11 @@ router.get('/sales', async (req, res) => {
     startDate.setDate(startDate.getDate() - days);
 
     const salesData = await query(`
-      SELECT 
+      SELECT
         DATE(created_at) as date,
         COUNT(*) as orders,
         COALESCE(SUM(total_amount), 0) as revenue
-      FROM orders 
+      FROM orders
       WHERE created_at >= ?
         AND status IN ('paid', 'shipped', 'completed')
       GROUP BY DATE(created_at)
@@ -75,9 +75,9 @@ router.get('/sales', async (req, res) => {
 router.get('/products', async (req, res) => {
   try {
     const list = await query(`
-      SELECT * FROM products 
-      WHERE status='active' 
-      ORDER BY stock DESC 
+      SELECT * FROM products
+      WHERE status='active'
+      ORDER BY stock DESC
       LIMIT 5
     `);
     const [{ count }] = await query(`SELECT COUNT(*) as count FROM products WHERE status='active'`);
@@ -95,9 +95,9 @@ router.get('/products', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const list = await query(`
-      SELECT id, username, email, avatar, role, created_at 
-      FROM users 
-      ORDER BY created_at DESC 
+      SELECT id, username, email, avatar, role, created_at
+      FROM users
+      ORDER BY created_at DESC
       LIMIT 5
     `);
     const [{ count }] = await query(`SELECT COUNT(*) as count FROM users`);

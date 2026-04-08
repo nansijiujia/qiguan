@@ -1,209 +1,246 @@
 require('dotenv').config();
 
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+const mysql = require('mysql2/promise');
+const { log } = console;
 
-const dbPath = path.join(__dirname, 'data', 'ecommerce.db');
-const dbDir = path.dirname(dbPath);
+function validateRequiredEnvVars() {
+  const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-  console.log(`[DB] Created database directory: ${dbDir}`);
+  if (missingVars.length > 0) {
+    throw new Error(
+      `[DB ERROR] 缺少必需的环境变量: ${missingVars.join(', ')}. ` +
+      `请在 .env 文件中配置这些变量，不要使用硬编码凭据（安全审计要求）`
+    );
+  }
 }
 
-let db;
-try {
-  db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      console.error('[DB ERROR] Failed to initialize SQLite:', err.message);
-      process.exit(1);
-    }
-    console.log('[DB] SQLite database initialized successfully');
-    console.log(`[DB] Path: ${dbPath}`);
-  });
-} catch (error) {
-  console.error('[DB ERROR] Failed to initialize SQLite:', error.message);
-  process.exit(1);
-}
+validateRequiredEnvVars();
 
-const initSQL = `
-CREATE TABLE IF NOT EXISTS categories (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  parent_id INTEGER DEFAULT NULL,
-  sort_order INTEGER DEFAULT 0,
-  status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+const dbConfig = {
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT) || 3306,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 
-CREATE TABLE IF NOT EXISTS products (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  description TEXT DEFAULT '',
-  price REAL NOT NULL CHECK(price >= 0),
-  original_price REAL DEFAULT 0,
-  stock INTEGER DEFAULT 0 CHECK(stock >= 0),
-  category_id INTEGER DEFAULT NULL,
-  image TEXT DEFAULT '',
-  status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
+  queueLimit: parseInt(process.env.DB_QUEUE_LIMIT) || 0,
+  waitForConnections: true,
 
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL UNIQUE,
-  email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  avatar TEXT DEFAULT '',
-  role TEXT DEFAULT 'user' CHECK(role IN ('user', 'admin', 'manager')),
-  status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'banned')),
-  last_login DATETIME,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+  charset: process.env.DB_CHARSET || 'utf8mb4',
+  timezone: process.env.DB_TIMEZONE || '+08:00',
 
-CREATE TABLE IF NOT EXISTS orders (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_no TEXT NOT NULL UNIQUE,
-  user_id INTEGER DEFAULT NULL,
-  customer_name TEXT,
-  customer_phone TEXT,
-  total_amount REAL NOT NULL DEFAULT 0,
-  status TEXT DEFAULT 'pending' CHECK(status IN ('pending','paid','shipped','completed','cancelled')),
-  shipping_address TEXT,
-  remark TEXT DEFAULT '',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+  connectTimeout: parseInt(process.env.DB_TIMEOUT) || 60000,
+  acquireTimeout: 60000,
 
-CREATE TABLE IF NOT EXISTS order_items (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_id INTEGER NOT NULL,
-  product_id INTEGER NOT NULL,
-  product_name TEXT NOT NULL,
-  quantity INTEGER NOT NULL CHECK(quantity > 0),
-  price REAL NOT NULL CHECK(price >= 0)
-);
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
 
-CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
-CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
-CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
-`;
-
-try {
-  db.exec(initSQL, (err) => {
-    if (err) {
-      console.error('[DB ERROR] Failed to create tables:', err.message);
-    } else {
-      console.log('[DB] All tables created/verified successfully');
-    }
-  });
-} catch (error) {
-  console.error('[DB ERROR] Failed to create tables:', error.message);
-}
-
-const query = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(rows);
-      }
-    });
-  });
+  debug: process.env.DB_DEBUG === 'true'
 };
 
-const queryAsync = async (sql, params = []) => {
+let pool;
+
+async function initPool() {
+  try {
+    pool = mysql.createPool(dbConfig);
+
+    const connection = await pool.getConnection();
+
+    log('[DB] ✅ MySQL数据库连接池初始化成功');
+    log(`[DB] 📍 主机: ${dbConfig.host}:${dbConfig.port}`);
+    log(`[DB] 📦 数据库: ${dbConfig.database}`);
+    log(`[DB] 🔗 连接池大小: ${dbConfig.connectionLimit}`);
+
+    const [rows] = await connection.execute('SELECT VERSION() AS version');
+    log(`[DB] 🔧 MySQL版本: ${rows[0].version}`);
+
+    connection.release();
+
+    return pool;
+
+  } catch (error) {
+    log(`[DB ERROR] ❌ 连接池初始化失败: ${error.message}`);
+    log('[DB ERROR] 请检查 .env 文件中的数据库配置');
+    throw error;
+  }
+}
+
+function getPool() {
+  if (!pool) {
+    throw new Error('[DB ERROR] 数据库未初始化，请先调用 initPool()');
+  }
+  return pool;
+}
+
+async function query(sql, params = []) {
+  const poolInstance = getPool();
+
+  if (dbConfig.debug) {
+    const startTime = Date.now();
+    log(`[DB/DEBUG] SQL: ${sql}`);
+    if (params.length > 0) log(`[DB/DEBUG] Params: ${JSON.stringify(params)}`);
+  }
+
+  try {
+    const [rows] = await poolInstance.execute(sql, params);
+    return rows;
+  } catch (error) {
+    log(`[DB ERROR] 查询失败: ${error.message}`);
+    log(`[DB ERROR] SQL: ${sql}`);
+    if (params.length > 0) log(`[DB ERROR] Params: ${JSON.stringify(params)}`);
+    throw error;
+  }
+}
+
+async function queryAsync(sql, params = []) {
   return query(sql, params);
-};
+}
 
-const getOne = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(row || null);
-      }
-    });
-  });
-};
+async function getOne(sql, params = []) {
+  const rows = await query(sql, params);
+  return rows.length > 0 ? rows[0] : null;
+}
 
-const getOneAsync = async (sql, params = []) => {
+async function getOneAsync(sql, params = []) {
   return getOne(sql, params);
-};
+}
 
-const run = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
-      if (err) {
-        reject(err);
-      } else {
-        resolve({ changes: this.changes, lastInsertRowid: this.lastID });
-      }
-    });
-  });
-};
+async function run(sql, params = []) {
+  const poolInstance = getPool();
 
-const runAsync = async (sql, params = []) => {
+  if (dbConfig.debug) {
+    log(`[DB/DEBUG] SQL: ${sql}`);
+    if (params.length > 0) log(`[DB/DEBUG] Params: ${JSON.stringify(params)}`);
+  }
+
+  try {
+    const [result] = await poolInstance.execute(sql, params);
+
+    return {
+      insertId: result.insertId,
+      affectedRows: result.affectedRows,
+      changedRows: result.changedRows || 0
+    };
+  } catch (error) {
+    log(`[DB ERROR] 写操作失败: ${error.message}`);
+    log(`[DB ERROR] SQL: ${sql}`);
+    if (params.length > 0) log(`[DB ERROR] Params: ${JSON.stringify(params)}`);
+    throw error;
+  }
+}
+
+async function runAsync(sql, params = []) {
   return run(sql, params);
-};
+}
 
-const execute = (sql, params = []) => {
+async function execute(sql, params = []) {
   const sqlTrim = sql.trim().toUpperCase();
-  if (sqlTrim.startsWith('SELECT') || sqlTrim.startsWith('PRAGMA') || sqlTrim.startsWith('EXPLAIN')) {
+
+  if (
+    sqlTrim.startsWith('SELECT') ||
+    sqlTrim.startsWith('PRAGMA') ||
+    sqlTrim.startsWith('EXPLAIN') ||
+    sqlTrim.startsWith('SHOW') ||
+    sqlTrim.startsWith('DESCRIBE') ||
+    sqlTrim.startsWith('DESC')
+  ) {
     return query(sql, params);
   } else {
-    return run(sql, params).then(result => {
-      return {
-        insertId: result.lastInsertRowid,
-        affectedRows: result.changes,
-        rows: sqlTrim.startsWith('INSERT') ? [] : undefined
-      };
-    });
+    const result = await run(sql, params);
+    return {
+      ...result,
+      rows: sqlTrim.startsWith('INSERT') ? [] : undefined
+    };
   }
-};
+}
 
-const executeAsync = async (sql, params = []) => {
+async function executeAsync(sql, params = []) {
   return execute(sql, params);
-};
+}
 
-const transaction = (fn) => {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run('BEGIN TRANSACTION', (err) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        
-        try {
-          const result = fn(db);
-          db.run('COMMIT', (err) => {
-            if (err) {
-              db.run('ROLLBACK');
-              reject(err);
-            } else {
-              resolve(result);
-            }
-          });
-        } catch (error) {
-          db.run('ROLLBACK');
-          reject(error);
-        }
-      });
-    });
-  });
-};
+async function transaction(callback) {
+  const poolInstance = getPool();
+  const connection = await poolInstance.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    log('[DB/TRANSACTION] 🔄 开始事务');
+
+    const txConnection = {
+      async query(sql, params = []) {
+        const [rows] = await connection.execute(sql, params);
+        return rows;
+      },
+
+      async getOne(sql, params = []) {
+        const [rows] = await connection.execute(sql, params);
+        return rows.length > 0 ? rows[0] : null;
+      },
+
+      async run(sql, params = []) {
+        const [result] = await connection.execute(sql, params);
+        return {
+          insertId: result.insertId,
+          affectedRows: result.affectedRows
+        };
+      }
+    };
+
+    const result = await callback(txConnection);
+
+    await connection.commit();
+
+    log('[DB/TRANSACTION] ✅ 事务提交成功');
+
+    return result;
+
+  } catch (error) {
+    await connection.rollback();
+    log(`[DB/TRANSACTION] ❌ 事务回滚: ${error.message}`);
+    throw error;
+
+  } finally {
+    connection.release();
+  }
+}
+
+async function closePool() {
+  if (pool) {
+    await pool.end();
+    log('[DB] 🔌 连接池已关闭');
+    pool = null;
+  }
+}
+
+async function healthCheck() {
+  try {
+    const poolInstance = getPool();
+    const [rows] = await poolInstance.execute('SELECT 1 AS health');
+    return {
+      status: 'healthy',
+      database: dbConfig.database,
+      host: dbConfig.host,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
+initPool().catch(err => {
+  log(`[DB ERROR] 数据库初始化失败: ${err.message}`);
+  process.exit(1);
+});
 
 module.exports = {
-  db,
+  initPool,
+  getPool,
   query,
   queryAsync,
   getOne,
@@ -212,5 +249,8 @@ module.exports = {
   runAsync,
   execute,
   executeAsync,
-  transaction
+  transaction,
+  closePool,
+  healthCheck,
+  config: dbConfig
 };

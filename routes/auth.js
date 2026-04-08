@@ -83,7 +83,7 @@ router.post('/auth/login', async (req, res) => {
     }
 
     execute(
-      "UPDATE users SET last_login = datetime('now') WHERE id = ?",
+      "UPDATE users SET last_login = NOW() WHERE id = ?",
       [user.id]
     );
 
@@ -160,9 +160,9 @@ router.post('/auth/register', async (req, res) => {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    const result = execute(
+    const result = await execute(
       `INSERT INTO users (username, email, password_hash, role, status, created_at)
-       VALUES (?, ?, ?, ?, 'active', datetime('now'))`,
+       VALUES (?, ?, ?, ?, 'active', NOW())`,
       [username, email, passwordHash, role || 'user']
     );
 
@@ -277,7 +277,7 @@ router.put('/auth/profile', verifyToken, async (req, res) => {
     }
 
     values.push(req.user.userId);
-    execute(`UPDATE users SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ?`, values);
+    await execute(`UPDATE users SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`, values);
 
     const updatedUser = await getOne(
       'SELECT id, username, email, avatar, role, status, phone, last_login, created_at, updated_at FROM users WHERE id = ?',

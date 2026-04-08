@@ -49,9 +49,9 @@ router.post('/orders', async (req, res) => {
     const orderNumber = generateOrderNumber();
     const shippingAddressJson = shipping_address ? JSON.stringify(shipping_address) : null;
 
-    const result = transaction((db) => {
+    const result = await transaction(async (db) => {
       for (const item of items) {
-        const product = db.prepare('SELECT id, name, stock FROM products WHERE id = ?').get(item.product_id);
+        const product = await db.getOne('SELECT id, name, stock FROM products WHERE id = ?', [item.product_id]);
 
         if (!product) {
           throw { code: 'PRODUCT_NOT_FOUND', message: `Product with ID ${item.product_id} not found` };
@@ -64,24 +64,26 @@ router.post('/orders', async (req, res) => {
           };
         }
 
-        db.prepare('UPDATE products SET stock = stock - ?, updated_at = datetime(\'now\') WHERE id = ?')
-          .run(item.quantity, item.product_id);
+        await db.run(
+          'UPDATE products SET stock = stock - ?, updated_at = NOW() WHERE id = ?',
+          [item.quantity, item.product_id]
+        );
       }
 
-      const orderResult = db.prepare(
+      const orderResult = await db.run(
         `INSERT INTO orders (order_no, user_id, total_amount, status, shipping_address, remark, created_at, updated_at)
-         VALUES (?, ?, ?, 'pending', ?, ?, datetime('now'), datetime('now'))`
-      ).run(orderNumber, userId, totalAmount, shippingAddressJson, remark || '');
-
-      const orderId = orderResult.lastInsertRowid;
-
-      const insertItemStmt = db.prepare(
-        'INSERT INTO order_items (order_id, product_id, product_name, quantity, price) VALUES (?, ?, ?, ?, ?)'
+         VALUES (?, ?, ?, 'pending', ?, ?, NOW(), NOW())`,
+        [orderNumber, userId, totalAmount, shippingAddressJson, remark || '']
       );
 
+      const orderId = orderResult.insertId;
+
       for (const item of items) {
-        const product = db.prepare('SELECT name FROM products WHERE id = ?').get(item.product_id);
-        insertItemStmt.run(orderId, item.product_id, product.name, item.quantity, item.price);
+        const product = await db.getOne('SELECT name FROM products WHERE id = ?', [item.product_id]);
+        await db.run(
+          'INSERT INTO order_items (order_id, product_id, product_name, quantity, price) VALUES (?, ?, ?, ?, ?)',
+          [orderId, item.product_id, product.name, item.quantity, item.price]
+        );
       }
 
       return orderId;
@@ -329,22 +331,24 @@ router.put('/orders/:id/status', async (req, res) => {
     }
 
     if (status === 'cancelled') {
-      transaction((db) => {
-        const orderItems = db.prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?').all(id);
+      await transaction(async (db) => {
+        const orderItems = await db.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [id]);
 
         for (const item of orderItems) {
-          db.prepare(
-            "UPDATE products SET stock = stock + ?, updated_at = datetime('now') WHERE id = ?"
-          ).run(item.quantity, item.product_id);
+          await db.run(
+            "UPDATE products SET stock = stock + ?, updated_at = NOW() WHERE id = ?",
+            [item.quantity, item.product_id]
+          );
         }
 
-        db.prepare(
-          "UPDATE orders SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?"
-        ).run(id);
+        await db.run(
+          "UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = ?",
+          [id]
+        );
       });
     } else {
       await execute(
-        "UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?",
+        "UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?",
         [status, id]
       );
     }

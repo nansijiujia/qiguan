@@ -2,6 +2,17 @@ const express = require('express');
 const { query, getOne, execute } = require('../db');
 const router = express.Router();
 
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, char => map[char]);
+}
+
 function getStockStatus(stock) {
   if (stock > 10) return '充足';
   if (stock > 0 && stock <= 10) return '不足';
@@ -174,7 +185,7 @@ router.get('/recommended', async (req, res) => {
                               FROM products p
                               LEFT JOIN categories c ON p.category_id = c.id
                               WHERE p.id NOT IN (${placeholders}) AND p.status = ?
-                              ORDER BY RANDOM()
+                              ORDER BY RAND()
                               LIMIT ?`;
         products = await query(recommendSql, [...purchasedCategoryIds, 'active', limitNum]);
       } else {
@@ -287,8 +298,8 @@ router.get('/search', async (req, res) => {
     if (shouldHighlight) {
       result = result.map(product => ({
         ...product,
-        name_highlighted: product.name.replace(new RegExp(q, 'gi'), match => `<span class="highlight">${match}</span>`),
-        description_highlighted: product.description ? product.description.replace(new RegExp(q, 'gi'), match => `<span class="highlight">${match}</span>`) : null
+        name_highlighted: product.name.replace(new RegExp(q, 'gi'), match => `<span class="highlight">${escapeHtml(match)}</span>`),
+        description_highlighted: product.description ? product.description.replace(new RegExp(q, 'gi'), match => `<span class="highlight">${escapeHtml(match)}</span>`) : null
       }));
     }
 
@@ -374,7 +385,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const sql = `INSERT INTO products (name, description, price, stock, category_id, image, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`;
+    const sql = `INSERT INTO products (name, description, price, stock, category_id, image, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
     const result = await execute(sql, [
       name,
       description || null,
@@ -459,7 +470,7 @@ router.put('/:id', async (req, res) => {
     }
 
     params.push(id);
-    const sql = `UPDATE products SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ?`;
+    const sql = `UPDATE products SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {
