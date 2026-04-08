@@ -27,8 +27,11 @@ router.get('/overview', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error getting overview:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('[ERROR] Getting overview:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: '获取概览数据失败' }
+    });
   }
 });
 

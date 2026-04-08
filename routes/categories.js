@@ -28,15 +28,23 @@ function buildTree(categories, parentId = null) {
 router.get('/', async (req, res) => {
   try {
     const categories = await query('SELECT * FROM categories ORDER BY sort_order ASC');
-    res.json({ success: true, data: categories });
+    const total = Array.isArray(categories) ? categories.length : 0;
+    res.json({
+      success: true,
+      data: {
+        list: categories,
+        pagination: {
+          page: 1,
+          limit: total,
+          total: total
+        }
+      }
+    });
   } catch (error) {
     console.error('[ERROR] Getting categories:', error);
     res.status(500).json({
       success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取分类列表失败'
-      }
+      error: { code: 'INTERNAL_ERROR', message: '获取分类列表失败' }
     });
   }
 });
