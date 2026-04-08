@@ -1,11 +1,13 @@
 {
   "name": "ecommerce-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "绮管电商后台系统 - 前后端一体化部署",
   "main": "index.js",
   "scripts": {
     "test": "echo \"No tests configured\" && exit 0",
-    "start": "node index.js"
+    "start": "node index.js",
+    "build:frontend": "cd qiguanqianduan && npm install && npm run build && cd .. && rm -rf dist && cp -r qiguanqianduan/dist ./dist",
+    "build": "npm run build:frontend"
   },
   "keywords": [],
   "author": "",
