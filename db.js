@@ -1,256 +1,182 @@
 require('dotenv').config();
+const Database = require('better-sqlite3');
+const path = require('path');
 
-const mysql = require('mysql2/promise');
-const { log } = console;
+const DB_PATH = process.env.DB_PATH || './data/database.sqlite';
 
-function validateRequiredEnvVars() {
-  const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+let db;
 
-  if (missingVars.length > 0) {
-    throw new Error(
-      `[DB ERROR] 缺少必需的环境变量: ${missingVars.join(', ')}. ` +
-      `请在 .env 文件中配置这些变量，不要使用硬编码凭据（安全审计要求）`
-    );
-  }
-}
-
-validateRequiredEnvVars();
-
-const dbConfig = {
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-
-  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
-  queueLimit: parseInt(process.env.DB_QUEUE_LIMIT) || 0,
-  waitForConnections: true,
-
-  charset: process.env.DB_CHARSET || 'utf8mb4',
-  timezone: process.env.DB_TIMEZONE || '+08:00',
-
-  connectTimeout: parseInt(process.env.DB_TIMEOUT) || 60000,
-  acquireTimeout: 60000,
-
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-
-  debug: process.env.DB_DEBUG === 'true'
-};
-
-let pool;
-
-async function initPool() {
+function initDatabase() {
   try {
-    pool = mysql.createPool(dbConfig);
+    const dir = path.dirname(DB_PATH);
+    require('fs').mkdirSync(dir, { recursive: true });
 
-    const connection = await pool.getConnection();
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
 
-    log('[DB] ✅ MySQL数据库连接池初始化成功');
-    log(`[DB] 📍 主机: ${dbConfig.host}:${dbConfig.port}`);
-    log(`[DB] 📦 数据库: ${dbConfig.database}`);
-    log(`[DB] 🔗 连接池大小: ${dbConfig.connectionLimit}`);
+    console.log('[DB] SQLite database connected:', DB_PATH);
 
-    const [rows] = await connection.execute('SELECT VERSION() AS version');
-    log(`[DB] 🔧 MySQL版本: ${rows[0].version}`);
+    const table = db.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='products'
+    `).get();
 
-    connection.release();
+    if (!table) {
+      console.log('[DB] Initializing database schema...');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS products (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          price REAL NOT NULL,
+          stock INTEGER DEFAULT 0,
+          category_id INTEGER,
+          description TEXT,
+          image TEXT,
+          status TEXT DEFAULT 'active',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
 
-    return pool;
+        CREATE TABLE IF NOT EXISTS categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          description TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
 
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          role TEXT DEFAULT 'user',
+          status TEXT DEFAULT 'active',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS orders (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          total_amount REAL NOT NULL,
+          status TEXT DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      const insertProduct = db.prepare(`INSERT INTO products (name, price, stock, category_id, description, status) VALUES (?, ?, ?, ?, ?, ?)`);
+      const insertCategory = db.prepare(`INSERT INTO categories (name, description) VALUES (?, ?)`);
+      const insertUser = db.prepare(`INSERT INTO users (username, password, role, status) VALUES (?, ?, ?, ?)`);
+
+      const transaction = db.transaction(() => {
+        insertCategory.run('电子产品', '电子设备类目');
+        insertCategory.run('服装鞋帽', '服饰配件类目');
+        insertCategory.run('食品饮料', '食品饮品类目');
+        insertCategory.run('家居用品', '家居生活类目');
+        insertCategory.run('美妆个护', '美容护理类目');
+        insertCategory.run('运动户外', '运动健身类目');
+        insertCategory.run('图书文具', '图书文具类目');
+        insertCategory.run('母婴用品', '母婴儿童类目');
+        insertCategory.run('虚拟商品', '虚拟服务类目');
+
+        insertProduct.run('智能手机 Pro Max', 6999.00, 150, 1, '旗舰级智能手机，搭载最新处理器', 'active');
+        insertProduct.run('无线蓝牙耳机', 299.00, 500, 1, '降噪蓝牙耳机，续航30小时', 'active');
+        insertProduct.run('纯棉T恤', 89.00, 1000, 2, '100%纯棉面料，舒适透气', 'active');
+        insertProduct.run('有机绿茶 250g', 128.00, 300, 3, '高山有机绿茶，清香回甘', 'active');
+        insertProduct.run('智能手表 运动版', 1599.00, 200, 1, '心率监测、GPS定位、50米防水', 'active');
+      });
+
+      transaction();
+      console.log('[DB] Database initialized with sample data');
+    }
+
+    return true;
   } catch (error) {
-    log(`[DB ERROR] ❌ 连接池初始化失败: ${error.message}`);
-    log('[DB ERROR] 请检查 .env 文件中的数据库配置');
+    console.error('[DB] Database initialization failed:', error.message);
     throw error;
   }
 }
 
-function getPool() {
-  if (!pool) {
-    throw new Error('[DB ERROR] 数据库未初始化，请先调用 initPool()');
-  }
-  return pool;
+function isSelect(sql) {
+  const trimmed = sql.trim().toUpperCase();
+  return trimmed.startsWith('SELECT');
 }
 
-async function query(sql, params = []) {
-  const poolInstance = getPool();
-
-  if (dbConfig.debug) {
-    const startTime = Date.now();
-    log(`[DB/DEBUG] SQL: ${sql}`);
-    if (params.length > 0) log(`[DB/DEBUG] Params: ${JSON.stringify(params)}`);
-  }
-
+function query(sql, params = []) {
   try {
-    const [rows] = await poolInstance.execute(sql, params);
-    return rows;
+    if (!db) initDatabase();
+
+    if (isSelect(sql)) {
+      const stmt = db.prepare(sql);
+      const rows = stmt.all(...params);
+      return rows;
+    } else {
+      const stmt = db.prepare(sql);
+      const result = stmt.run(...params);
+      return {
+        affectedRows: result.changes,
+        insertId: result.lastInsertRowid
+      };
+    }
   } catch (error) {
-    log(`[DB ERROR] 查询失败: ${error.message}`);
-    log(`[DB ERROR] SQL: ${sql}`);
-    if (params.length > 0) log(`[DB ERROR] Params: ${JSON.stringify(params)}`);
+    console.error('[DB] Query error:', error.message);
+    throw error;
+  }
+}
+
+function getOne(sql, params = []) {
+  try {
+    if (!db) initDatabase();
+    const stmt = db.prepare(sql);
+    return stmt.get(...params) || null;
+  } catch (error) {
+    console.error('[DB] getOne error:', error.message);
+    throw error;
+  }
+}
+
+function all(sql, params = []) {
+  try {
+    if (!db) initDatabase();
+    const stmt = db.prepare(sql);
+    return stmt.all(...params);
+  } catch (error) {
+    console.error('[DB] all error:', error.message);
     throw error;
   }
 }
 
 async function queryAsync(sql, params = []) {
-  return query(sql, params);
-}
-
-async function getOne(sql, params = []) {
-  const rows = await query(sql, params);
-  return rows.length > 0 ? rows[0] : null;
+  return new Promise((resolve, reject) => {
+    try {
+      const result = query(sql, params);
+      resolve(result);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 async function getOneAsync(sql, params = []) {
-  return getOne(sql, params);
+  return new Promise((resolve, reject) => {
+    try {
+      const result = getOne(sql, params);
+      resolve(result);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
-async function run(sql, params = []) {
-  const poolInstance = getPool();
-
-  if (dbConfig.debug) {
-    log(`[DB/DEBUG] SQL: ${sql}`);
-    if (params.length > 0) log(`[DB/DEBUG] Params: ${JSON.stringify(params)}`);
-  }
-
-  try {
-    const [result] = await poolInstance.execute(sql, params);
-
-    return {
-      insertId: result.insertId,
-      affectedRows: result.affectedRows,
-      changedRows: result.changedRows || 0
-    };
-  } catch (error) {
-    log(`[DB ERROR] 写操作失败: ${error.message}`);
-    log(`[DB ERROR] SQL: ${sql}`);
-    if (params.length > 0) log(`[DB ERROR] Params: ${JSON.stringify(params)}`);
-    throw error;
-  }
+function transaction(callback) {
+  const t = db.transaction(callback);
+  return t();
 }
-
-async function runAsync(sql, params = []) {
-  return run(sql, params);
-}
-
-async function execute(sql, params = []) {
-  const sqlTrim = sql.trim().toUpperCase();
-
-  if (
-    sqlTrim.startsWith('SELECT') ||
-    sqlTrim.startsWith('PRAGMA') ||
-    sqlTrim.startsWith('EXPLAIN') ||
-    sqlTrim.startsWith('SHOW') ||
-    sqlTrim.startsWith('DESCRIBE') ||
-    sqlTrim.startsWith('DESC')
-  ) {
-    return query(sql, params);
-  } else {
-    const result = await run(sql, params);
-    return {
-      ...result,
-      rows: sqlTrim.startsWith('INSERT') ? [] : undefined
-    };
-  }
-}
-
-async function executeAsync(sql, params = []) {
-  return execute(sql, params);
-}
-
-async function transaction(callback) {
-  const poolInstance = getPool();
-  const connection = await poolInstance.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
-    log('[DB/TRANSACTION] 🔄 开始事务');
-
-    const txConnection = {
-      async query(sql, params = []) {
-        const [rows] = await connection.execute(sql, params);
-        return rows;
-      },
-
-      async getOne(sql, params = []) {
-        const [rows] = await connection.execute(sql, params);
-        return rows.length > 0 ? rows[0] : null;
-      },
-
-      async run(sql, params = []) {
-        const [result] = await connection.execute(sql, params);
-        return {
-          insertId: result.insertId,
-          affectedRows: result.affectedRows
-        };
-      }
-    };
-
-    const result = await callback(txConnection);
-
-    await connection.commit();
-
-    log('[DB/TRANSACTION] ✅ 事务提交成功');
-
-    return result;
-
-  } catch (error) {
-    await connection.rollback();
-    log(`[DB/TRANSACTION] ❌ 事务回滚: ${error.message}`);
-    throw error;
-
-  } finally {
-    connection.release();
-  }
-}
-
-async function closePool() {
-  if (pool) {
-    await pool.end();
-    log('[DB] 🔌 连接池已关闭');
-    pool = null;
-  }
-}
-
-async function healthCheck() {
-  try {
-    const poolInstance = getPool();
-    const [rows] = await poolInstance.execute('SELECT 1 AS health');
-    return {
-      status: 'healthy',
-      database: dbConfig.database,
-      host: dbConfig.host,
-      timestamp: new Date().toISOString()
-    };
-  } catch (error) {
-    return {
-      status: 'unhealthy',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    };
-  }
-}
-
-initPool().catch(err => {
-  log(`[DB ERROR] 数据库初始化失败: ${err.message}`);
-  process.exit(1);
-});
 
 module.exports = {
-  initPool,
-  getPool,
   query,
-  queryAsync,
   getOne,
+  all,
+  queryAsync,
   getOneAsync,
-  run,
-  runAsync,
-  execute,
-  executeAsync,
   transaction,
-  closePool,
-  healthCheck,
-  config: dbConfig
+  initDatabase,
+  getDb: () => db
 };

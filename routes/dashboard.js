@@ -11,13 +11,15 @@ router.get('/overview', async (req, res) => {
       query('SELECT COUNT(*) as count FROM users')
     ]);
 
+    const safeGet = (arr, key) => (Array.isArray(arr) && arr.length > 0 ? arr[0][key] || 0 : 0);
+
     res.json({
       success: true,
       data: {
-        totalProducts: totalProducts[0].count,
-        totalOrders: totalOrders[0].count,
-        totalRevenue: parseFloat(totalRevenue[0].revenue).toFixed(2),
-        totalUsers: totalUsers[0].count,
+        totalProducts: safeGet(totalProducts, 'count'),
+        totalOrders: safeGet(totalOrders, 'count'),
+        totalRevenue: parseFloat(safeGet(totalRevenue, 'revenue') || 0).toFixed(2),
+        totalUsers: safeGet(totalUsers, 'count'),
         productGrowth: '+12.3%',
         orderGrowth: '+8.1%',
         revenueGrowth: '-2.4%',
