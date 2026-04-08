@@ -65,6 +65,9 @@ function initDatabase() {
       const insertCategory = db.prepare(`INSERT INTO categories (name, description) VALUES (?, ?)`);
       const insertUser = db.prepare(`INSERT INTO users (username, password, role, status) VALUES (?, ?, ?, ?)`);
 
+      const bcrypt = require('bcryptjs');
+      const adminPassword = bcrypt.hashSync('admin123', 10);
+
       const transaction = db.transaction(() => {
         insertCategory.run('电子产品', '电子设备类目');
         insertCategory.run('服装鞋帽', '服饰配件类目');
@@ -75,6 +78,8 @@ function initDatabase() {
         insertCategory.run('图书文具', '图书文具类目');
         insertCategory.run('母婴用品', '母婴儿童类目');
         insertCategory.run('虚拟商品', '虚拟服务类目');
+
+        insertUser.run('admin', adminPassword, 'admin', 'active');
 
         insertProduct.run('智能手机 Pro Max', 6999.00, 150, 1, '旗舰级智能手机，搭载最新处理器', 'active');
         insertProduct.run('无线蓝牙耳机', 299.00, 500, 1, '降噪蓝牙耳机，续航30小时', 'active');

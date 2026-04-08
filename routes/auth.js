@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -81,11 +81,6 @@ router.post('/login', async (req, res) => {
         }
       });
     }
-
-    execute(
-      "UPDATE users SET last_login = NOW() WHERE id = ?",
-      [user.id]
-    );
 
     const token = generateToken({
       userId: user.id,
@@ -160,8 +155,8 @@ router.post('/register', async (req, res) => {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    const result = await execute(
-      `INSERT INTO users (username, email, password_hash, role, status, created_at)
+    const result = await query(
+      `INSERT INTO users (username, email, password, role, status, created_at)
        VALUES (?, ?, ?, ?, 'active', NOW())`,
       [username, email, passwordHash, role || 'user']
     );
