@@ -1,6 +1,7 @@
 require('dotenv').config();
 const Database = require('better-sqlite3');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 const DB_PATH = process.env.DB_PATH || './data/database.sqlite';
 
@@ -39,47 +40,68 @@ function initDatabase() {
         CREATE TABLE IF NOT EXISTS categories (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL UNIQUE,
+          parent_id INTEGER DEFAULT NULL,
+          sort_order INTEGER DEFAULT 0,
           description TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          status TEXT DEFAULT 'active',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           username TEXT NOT NULL UNIQUE,
           password TEXT NOT NULL,
+          email TEXT UNIQUE,
+          avatar TEXT,
           role TEXT DEFAULT 'user',
           status TEXT DEFAULT 'active',
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          last_login DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS orders (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_no TEXT UNIQUE,
           user_id INTEGER,
           total_amount REAL NOT NULL,
           status TEXT DEFAULT 'pending',
+          shipping_address TEXT,
+          remark TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS order_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER NOT NULL,
+          product_id INTEGER NOT NULL,
+          product_name TEXT,
+          quantity INTEGER NOT NULL,
+          price REAL NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `);
 
       const insertProduct = db.prepare(`INSERT INTO products (name, price, stock, category_id, description, status) VALUES (?, ?, ?, ?, ?, ?)`);
-      const insertCategory = db.prepare(`INSERT INTO categories (name, description) VALUES (?, ?)`);
-      const insertUser = db.prepare(`INSERT INTO users (username, password, role, status) VALUES (?, ?, ?, ?)`);
+      const insertCategory = db.prepare(`INSERT INTO categories (name, parent_id, sort_order, description, status) VALUES (?, ?, ?, ?, ?)`);
+      const insertUser = db.prepare(`INSERT INTO users (username, password, email, role, status) VALUES (?, ?, ?, ?, ?)`);
 
-      const bcrypt = require('bcryptjs');
       const adminPassword = bcrypt.hashSync('admin123', 10);
 
       const transaction = db.transaction(() => {
-        insertCategory.run('电子产品', '电子设备类目');
-        insertCategory.run('服装鞋帽', '服饰配件类目');
-        insertCategory.run('食品饮料', '食品饮品类目');
-        insertCategory.run('家居用品', '家居生活类目');
-        insertCategory.run('美妆个护', '美容护理类目');
-        insertCategory.run('运动户外', '运动健身类目');
-        insertCategory.run('图书文具', '图书文具类目');
-        insertCategory.run('母婴用品', '母婴儿童类目');
-        insertCategory.run('虚拟商品', '虚拟服务类目');
+        insertCategory.run('电子产品', null, 0, '电子设备类目', 'active');
+        insertCategory.run('服装鞋帽', null, 1, '服饰配件类目', 'active');
+        insertCategory.run('食品饮料', null, 2, '食品饮品类目', 'active');
+        insertCategory.run('家居用品', null, 3, '家居生活类目', 'active');
+        insertCategory.run('美妆个护', null, 4, '美容护理类目', 'active');
+        insertCategory.run('运动户外', null, 5, '运动健身类目', 'active');
+        insertCategory.run('图书文具', null, 6, '图书文具类目', 'active');
+        insertCategory.run('母婴用品', null, 7, '母婴儿童类目', 'active');
+        insertCategory.run('虚拟商品', null, 8, '虚拟服务类目', 'active');
 
-        insertUser.run('admin', adminPassword, 'admin', 'active');
+        insertUser.run('admin', adminPassword, 'admin@qiguan.com', 'admin', 'active');
 
         insertProduct.run('智能手机 Pro Max', 6999.00, 150, 1, '旗舰级智能手机，搭载最新处理器', 'active');
         insertProduct.run('无线蓝牙耳机', 299.00, 500, 1, '降噪蓝牙耳机，续航30小时', 'active');
@@ -89,7 +111,7 @@ function initDatabase() {
       });
 
       transaction();
-      console.log('[DB] Database initialized with sample data');
+      console.log('[DB] Database initialized with sample data (including admin user)');
     }
 
     return true;
@@ -121,7 +143,7 @@ function query(sql, params = []) {
       };
     }
   } catch (error) {
-    console.error('[DB] Query error:', error.message);
+    console.error('[DB] Query error:', error.message, '| SQL:', sql.substring(0, 100));
     throw error;
   }
 }
@@ -170,6 +192,14 @@ async function getOneAsync(sql, params = []) {
   });
 }
 
+function run(sql, params = []) {
+  return query(sql, params);
+}
+
+function execute(sql, params = []) {
+  return query(sql, params);
+}
+
 function transaction(callback) {
   const t = db.transaction(callback);
   return t();
@@ -182,7 +212,8 @@ module.exports = {
   queryAsync,
   getOneAsync,
   transaction,
+  run,
+  execute,
   initDatabase,
-  execute: query,
   getDb: () => db
 };
