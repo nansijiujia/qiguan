@@ -170,7 +170,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, NOW())`;
+    const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, datetime('now'))`;
     const result = await execute(sql, [
       name,
       parent_id || null,
@@ -268,7 +268,7 @@ router.put('/:id', async (req, res) => {
     }
 
     params.push(id);
-    const sql = `UPDATE categories SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
+    const sql = `UPDATE categories SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {

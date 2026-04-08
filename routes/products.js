@@ -385,7 +385,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const sql = `INSERT INTO products (name, description, price, stock, category_id, image, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
+    const sql = `INSERT INTO products (name, description, price, stock, category_id, image, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`;
     const result = await execute(sql, [
       name,
       description || null,
@@ -470,7 +470,7 @@ router.put('/:id', async (req, res) => {
     }
 
     params.push(id);
-    const sql = `UPDATE products SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
+    const sql = `UPDATE products SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {
