@@ -1,176 +1,136 @@
 const express = require('express');
-const { db } = require('../db');
+const { query, getOne } = require('../db');
 const router = express.Router();
 
-// 获取分类列表
 router.get('/categories', async (req, res) => {
   try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const categories = await db.collection('categories')
-      .orderBy('sortOrder', 'asc')
-      .get();
-    
-    console.log('Getting categories:', categories.data);
-    res.json({ success: true, data: categories.data });
+    const categories = await query('SELECT * FROM categories ORDER BY sort_order ASC');
+    res.json({ success: true, data: categories });
   } catch (error) {
     console.error('Error getting categories:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// 获取分类详情
 router.get('/categories/:id', async (req, res) => {
   try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
     const { id } = req.params;
-    const category = await db.collection('categories')
-      .where({ _id: id })
-      .get();
-    
-    if (category.data.length === 0) {
+    const category = await getOne('SELECT * FROM categories WHERE id = ?', [id]);
+
+    if (!category) {
       return res.status(404).json({ success: false, message: 'Category not found' });
     }
-    
-    console.log('Getting category:', category.data[0]);
-    res.json({ success: true, data: category.data[0] });
+
+    res.json({ success: true, data: category });
   } catch (error) {
     console.error('Error getting category:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// 添加分类
 router.post('/categories', async (req, res) => {
   try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const { name, parentId, sortOrder, status } = req.body;
-    
-    if (!name) {
+    const { name, parent_id, sort_order, status } = req.body;
+
+    if (!name || name.trim() === '') {
       return res.status(400).json({ success: false, message: 'Category name is required' });
     }
-    
-    const newCategory = {
+
+    const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, NOW())`;
+    const result = await query(sql, [
       name,
-      parentId: parentId || null,
-      sortOrder: sortOrder || 0,
-      status: status || 'active',
-      created_at: new Date()
-    };
-    
-    const result = await db.collection('categories').add(newCategory);
-    newCategory._id = result.id;
-    
-    console.log('Adding category:', newCategory);
-    res.json({ success: true, data: newCategory });
-  } catch (error) {
-    console.error('Error adding category:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
+      parent_id || null,
+      sort_order || 0,
+      status || 'active'
+    ]);
 
-// 编辑分类
-router.put('/categories/:id', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const { id } = req.params;
-    const { name, parentId, sortOrder, status } = req.body;
-    
-    if (!name) {
-      return res.status(400).json({ success: false, message: 'Category name is required' });
-    }
-    
-    const updatedCategory = {
-      name,
-      parentId: parentId || null,
-      sortOrder: sortOrder || 0,
-      status: status || 'active'
-    };
-    
-    const result = await db.collection('categories')
-      .where({ _id: id })
-      .update(updatedCategory);
-    
-    if (result.updated === 0) {
-      return res.status(404).json({ success: false, message: 'Category not found' });
-    }
-    
-    updatedCategory._id = id;
-    console.log('Updating category:', updatedCategory);
-    res.json({ success: true, data: updatedCategory });
-  } catch (error) {
-    console.error('Error updating category:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// 删除分类
-router.delete('/categories/:id', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const { id } = req.params;
-    const result = await db.collection('categories')
-      .where({ _id: id })
-      .remove();
-    
-    if (result.deleted === 0) {
-      return res.status(404).json({ success: false, message: 'Category not found' });
-    }
-    
-    console.log('Deleting category:', id);
-    res.json({ success: true, message: 'Category deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting category:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// 获取分类下的商品
-router.get('/products/category/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-    const offset = (page - 1) * limit;
-    
-    const products = await db.collection('products')
-      .where({ status: 'active', category_id: id })
-      .orderBy('created_at', 'desc')
-      .skip(offset)
-      .limit(limit)
-      .get();
-    
-    // 获取总数
-    const count = await db.collection('products')
-      .where({ status: 'active', category_id: id })
-      .count();
-    
+    const insertId = result.insertId;
     res.json({
       success: true,
       data: {
-        list: products.data,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: count.total
-        }
+        id: insertId,
+        name,
+        parent_id: parent_id || null,
+        sort_order: sort_order || 0,
+        status: status || 'active'
       }
     });
   } catch (error) {
-    console.error('Error getting products by category:', error);
+    console.error('Error adding category:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'Category name already exists' });
+    }
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.put('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, parent_id, sort_order, status } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Category name is required' });
+    }
+
+    const fields = [];
+    const params = [];
+
+    fields.push('name = ?');
+    params.push(name);
+
+    if (parent_id !== undefined) {
+      fields.push('parent_id = ?');
+      params.push(parent_id);
+    }
+    if (sort_order !== undefined) {
+      fields.push('sort_order = ?');
+      params.push(sort_order);
+    }
+    if (status !== undefined) {
+      fields.push('status = ?');
+      params.push(status);
+    }
+
+    params.push(id);
+    const sql = `UPDATE categories SET ${fields.join(', ')} WHERE id = ?`;
+    const result = await query(sql, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Category not found' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: parseInt(id),
+        name,
+        parent_id: parent_id !== undefined ? parent_id : null,
+        sort_order: sort_order !== undefined ? sort_order : 0,
+        status: status !== undefined ? status : 'active'
+      }
+    });
+  } catch (error) {
+    console.error('Error updating category:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'Category name already exists' });
+    }
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.delete('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query('DELETE FROM categories WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Category not found' });
+    }
+
+    res.json({ success: true, message: 'Category deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting category:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

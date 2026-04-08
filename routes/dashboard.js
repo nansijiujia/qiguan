@@ -1,38 +1,91 @@
 const express = require('express');
 const router = express.Router();
+const { query } = require('../db');
 
 router.get('/overview', async (req, res) => {
   try {
-    const data = {
-      totalProducts: 128,
-      totalOrders: 356,
-      totalRevenue: 125680.50,
-      totalUsers: 892,
-      recentOrders: [
-        { id: 'ORD001', customer: '张三', amount: 299.00, status: 'completed', date: '2024-01-15' },
-        { id: 'ORD002', customer: '李四', amount: 1599.00, status: 'pending', date: '2024-01-14' }
-      ]
-    };
-    res.json({ success: true, data });
+    const [totalProducts, totalOrders, totalRevenue, totalUsers] = await Promise.all([
+      query('SELECT COUNT(*) as count FROM products WHERE status="active"'),
+      query('SELECT COUNT(*) as count FROM orders'),
+      query('SELECT COALESCE(SUM(total_amount), 0) as revenue FROM orders WHERE status IN ("paid", "shipped", "completed")'),
+      query('SELECT COUNT(*) as count FROM users')
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalProducts: totalProducts[0].count,
+        totalOrders: totalOrders[0].count,
+        totalRevenue: parseFloat(totalRevenue[0].revenue).toFixed(2),
+        totalUsers: totalUsers[0].count,
+        productGrowth: '+12.3%',
+        orderGrowth: '+8.1%',
+        revenueGrowth: '-2.4%',
+        userGrowth: '+15.7%'
+      }
+    });
   } catch (error) {
     console.error('Error getting overview:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
+router.get('/sales', async (req, res) => {
+  try {
+    const days = parseInt(req.query.period) || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const salesData = await query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as orders,
+        COALESCE(SUM(total_amount), 0) as revenue
+      FROM orders 
+      WHERE created_at >= ?
+        AND status IN ('paid', 'shipped', 'completed')
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `, [startDate.toISOString().slice(0, 19).replace('T', ' ')]);
+
+    const result = [];
+    const currentDate = new Date(startDate);
+    const today = new Date();
+    while (currentDate <= today) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const found = salesData.find(row => row.date.toISOString ? row.date.toISOString().split('T')[0] : String(row.date) === dateStr);
+      result.push({
+        date: dateStr,
+        orders: found ? found.orders : 0,
+        revenue: found ? parseFloat(found.revenue) : 0
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error getting sales:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 router.get('/products', async (req, res) => {
   try {
-    const data = {
-      list: [
-        { id: '1', name: '智能手机 Pro', price: 2999, stock: 150, sales: 89, category: '电子产品' },
-        { id: '2', name: '无线耳机', price: 399, stock: 300, sales: 234, category: '电子产品' },
-        { id: '3', name: '笔记本电脑', price: 5999, stock: 80, sales: 45, category: '电子产品' },
-        { id: '4', name: '智能手表', price: 1299, stock: 200, sales: 156, category: '穿戴设备' },
-        { id: '5', name: '平板电脑', price: 2499, stock: 120, sales: 78, category: '电子产品' }
-      ],
-      pagination: { page: 1, limit: 10, total: 128 }
-    };
-    res.json({ success: true, data });
+    const list = await query(`
+      SELECT * FROM products 
+      WHERE status='active' 
+      ORDER BY stock DESC 
+      LIMIT 5
+    `);
+    const [{ count }] = await query(`SELECT COUNT(*) as count FROM products WHERE status='active'`);
+
+    res.json({
+      success: true,
+      data: { list, pagination: { page: 1, limit: 5, total: count } }
+    });
   } catch (error) {
     console.error('Error getting products:', error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -41,58 +94,39 @@ router.get('/products', async (req, res) => {
 
 router.get('/users', async (req, res) => {
   try {
-    const data = {
-      list: [
-        { id: '1', name: '张三', email: 'zhangsan@example.com', role: 'admin', status: 'active', joinDate: '2024-01-01' },
-        { id: '2', name: '李四', email: 'lisi@example.com', role: 'user', status: 'active', joinDate: '2024-01-05' },
-        { id: '3', name: '王五', email: 'wangwu@example.com', role: 'user', status: 'inactive', joinDate: '2024-01-10' }
-      ],
-      pagination: { page: 1, limit: 10, total: 892 }
-    };
-    res.json({ success: true, data });
+    const list = await query(`
+      SELECT id, username, email, avatar, role, created_at 
+      FROM users 
+      ORDER BY created_at DESC 
+      LIMIT 5
+    `);
+    const [{ count }] = await query(`SELECT COUNT(*) as count FROM users`);
+
+    res.json({
+      success: true,
+      data: { list, pagination: { page: 1, limit: 5, total: count } }
+    });
   } catch (error) {
     console.error('Error getting users:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-router.get('/sales', async (req, res) => {
-  try {
-    const data = {
-      monthlySales: [
-        { month: '1月', revenue: 45600, orders: 89 },
-        { month: '2月', revenue: 52300, orders: 102 },
-        { month: '3月', revenue: 48900, orders: 95 },
-        { month: '4月', revenue: 61200, orders: 118 },
-        { month: '5月', revenue: 58700, orders: 112 },
-        { month: '6月', revenue: 72300, orders: 145 }
-      ],
-      topProducts: [
-        { name: '智能手机 Pro', sales: 89, revenue: 266911 },
-        { name: '无线耳机', sales: 234, revenue: 93366 },
-        { name: '智能手表', sales: 156, revenue: 202644 }
-      ]
-    };
-    res.json({ success: true, data });
-  } catch (error) {
-    console.error('Error getting sales:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
 router.get('/orders', async (req, res) => {
   try {
-    const data = {
-      list: [
-        { id: 'ORD001', customer: '张三', products: ['智能手机 Pro'], total: 2999, status: 'completed', date: '2024-01-15 10:30' },
-        { id: 'ORD002', customer: '李四', products: ['无线耳机', '智能手表'], total: 1698, status: 'pending', date: '2024-01-15 09:20' },
-        { id: 'ORD003', customer: '王五', products: ['笔记本电脑'], total: 5999, status: 'shipping', date: '2024-01-14 16:45' },
-        { id: 'ORD004', customer: '赵六', products: ['平板电脑'], total: 2499, status: 'completed', date: '2024-01-14 14:10' },
-        { id: 'ORD005', customer: '钱七', products: ['无线耳机'], total: 399, status: 'cancelled', date: '2024-01-13 11:55' }
-      ],
-      pagination: { page: 1, limit: 10, total: 356 }
-    };
-    res.json({ success: true, data });
+    const list = await query(`
+      SELECT o.*, u.username as customer_username
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+      ORDER BY o.created_at DESC
+      LIMIT 10
+    `);
+    const [{ count }] = await query(`SELECT COUNT(*) as count FROM orders`);
+
+    res.json({
+      success: true,
+      data: { list, pagination: { page: 1, limit: 10, total: count } }
+    });
   } catch (error) {
     console.error('Error getting orders:', error);
     res.status(500).json({ success: false, message: 'Server error' });

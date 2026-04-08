@@ -1,100 +1,56 @@
 const express = require('express');
-const { db } = require('../db');
+const { query, getOne, db } = require('../db');
 const router = express.Router();
 
-// 生成订单号
 function generateOrderNo() {
-  const timestamp = new Date().getTime();
+  const timestamp = Date.now();
   const random = Math.floor(Math.random() * 1000);
   return `ORD${timestamp}${random.toString().padStart(3, '0')}`;
 }
 
-// 创建订单
-router.post('/orders', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const { userId, items, totalAmount, paymentMethod, shippingAddress, shippingPhone } = req.body;
-    
-    // 生成订单号
-    const orderNo = generateOrderNo();
-    
-    // 插入订单
-    const orderResult = await db.collection('orders').add({
-      user_id: userId,
-      order_no: orderNo,
-      total_amount: totalAmount,
-      status: 'pending',
-      payment_method: paymentMethod,
-      shipping_address: shippingAddress,
-      shipping_phone: shippingPhone,
-      created_at: new Date()
-    });
-    
-    // 插入订单商品
-    for (const item of items) {
-      await db.collection('order_items').add({
-        order_id: orderResult.id,
-        product_id: item.productId,
-        quantity: item.quantity,
-        price: item.price,
-        subtotal: item.subtotal
-      });
-    }
-    
-    res.json({ success: true, data: { orderId: orderResult.id, orderNo } });
-  } catch (error) {
-    console.error('Error creating order:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// 获取订单列表
 router.get('/orders', async (req, res) => {
   try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const { page = 1, limit = 10, status, userId } = req.query;
-    const offset = (page - 1) * limit;
-    
-    let query = db.collection('orders');
-    
-    if (userId) {
-      query = query.where({ user_id: userId });
-    }
-    
+    const { page = 1, limit = 10, status, keyword } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const params = [];
+    let whereSql = 'WHERE 1=1';
+
     if (status) {
-      query = query.where({ status });
+      whereSql += ' AND o.status = ?';
+      params.push(status);
     }
-    
-    const orders = await query
-      .orderBy('created_at', 'desc')
-      .skip(offset)
-      .limit(limit)
-      .get();
-    
-    // 获取总数
-    let countQuery = db.collection('orders');
-    if (userId) {
-      countQuery = countQuery.where({ user_id: userId });
+    if (keyword) {
+      whereSql += ' AND (o.order_no LIKE ? OR u.username LIKE ?)';
+      const kw = `%${keyword}%`;
+      params.push(kw, kw);
     }
-    if (status) {
-      countQuery = countQuery.where({ status });
-    }
-    const count = await countQuery.count();
-    
+
+    const countResult = await getOne(
+      `SELECT COUNT(*) AS total
+       FROM orders o
+       LEFT JOIN users u ON o.user_id = u.id
+       ${whereSql}`,
+      params
+    );
+
+    const list = await query(
+      `SELECT o.*, u.username AS customer_name
+       FROM orders o
+       LEFT JOIN users u ON o.user_id = u.id
+       ${whereSql}
+       ORDER BY o.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+
     res.json({
       success: true,
       data: {
-        list: orders.data,
+        list,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: count.total
+          total: countResult.total
         }
       }
     });
@@ -104,49 +60,136 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-// 获取订单详情
 router.get('/orders/:id', async (req, res) => {
   try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
     const { id } = req.params;
-    
-    // 获取订单信息
-    const order = await db.collection('orders').doc(id).get();
-    
-    if (!order.data()) {
+
+    const order = await getOne('SELECT * FROM orders WHERE id = ?', [id]);
+    if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
-    
-    // 获取订单商品
-    const items = await db.collection('order_items').where({ order_id: id }).get();
-    
-    const orderData = order.data();
-    orderData.items = items.data;
-    res.json({ success: true, data: orderData });
+
+    const items = await query(
+      'SELECT * FROM order_items WHERE order_id = ?',
+      [id]
+    );
+
+    order.items = items;
+    res.json({ success: true, data: order });
   } catch (error) {
     console.error('Error getting order details:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// 取消订单
+router.post('/orders', async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const { user_id, items, payment_method, shipping_address, shipping_phone } = req.body;
+
+    if (!user_id || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'user_id and items array are required' });
+    }
+
+    const user = await connection.execute('SELECT id FROM users WHERE id = ?', [user_id]);
+    if (user[0].length === 0) {
+      return res.status(400).json({ success: false, message: 'User not found' });
+    }
+
+    const orderNo = generateOrderNo();
+    let totalAmount = 0;
+    for (const item of items) {
+      if (!item.product_id || !item.quantity || !item.price) {
+        throw new Error('Each item must have product_id, quantity and price');
+      }
+      totalAmount += item.quantity * item.price;
+    }
+
+    await connection.beginTransaction();
+
+    const [orderResult] = await connection.execute(
+      `INSERT INTO orders (user_id, order_no, total_amount, status, payment_method, shipping_address, shipping_phone, created_at)
+       VALUES (?, ?, ?, 'pending', ?, ?, ?, NOW())`,
+      [user_id, orderNo, totalAmount, payment_method || null, shipping_address || null, shipping_phone || null]
+    );
+    const orderId = orderResult.insertId;
+
+    const itemValues = items.map(item => [
+      orderId,
+      item.product_id,
+      item.quantity,
+      item.price,
+      item.quantity * item.price
+    ]);
+    await connection.query(
+      'INSERT INTO order_items (order_id, product_id, quantity, price, subtotal) VALUES ?',
+      [itemValues]
+    );
+
+    await connection.commit();
+
+    const newOrder = await getOne('SELECT * FROM orders WHERE id = ?', [orderId]);
+    newOrder.items = await query('SELECT * FROM order_items WHERE order_id = ?', [orderId]);
+
+    res.status(201).json({ success: true, data: newOrder });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error creating order:', error);
+    res.status(500).json({ success: false, message: error.message || 'Server error' });
+  } finally {
+    connection.release();
+  }
+});
+
+router.put('/orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, payment_method, shipping_address, shipping_phone, tracking_number } = req.body;
+
+    const order = await getOne('SELECT id FROM orders WHERE id = ?', [id]);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const fields = [];
+    const values = [];
+
+    if (status !== undefined) { fields.push('status = ?'); values.push(status); }
+    if (payment_method !== undefined) { fields.push('payment_method = ?'); values.push(payment_method); }
+    if (shipping_address !== undefined) { fields.push('shipping_address = ?'); values.push(shipping_address); }
+    if (shipping_phone !== undefined) { fields.push('shipping_phone = ?'); values.push(shipping_phone); }
+    if (tracking_number !== undefined) { fields.push('tracking_number = ?'); values.push(tracking_number); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    values.push(id);
+    await query(`UPDATE orders SET ${fields.join(', ')} WHERE id = ?`, values);
+
+    const updatedOrder = await getOne('SELECT * FROM orders WHERE id = ?', [id]);
+    updatedOrder.items = await query('SELECT * FROM order_items WHERE order_id = ?', [id]);
+
+    res.json({ success: true, data: updatedOrder });
+  } catch (error) {
+    console.error('Error updating order:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 router.put('/orders/:id/cancel', async (req, res) => {
   try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
     const { id } = req.params;
-    
-    const order = await db.collection('orders').doc(id).get();
-    if (!order.data() || order.data().status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Order cannot be cancelled' });
+
+    const order = await getOne('SELECT id, status FROM orders WHERE id = ?', [id]);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
-    
-    await db.collection('orders').doc(id).update({ status: 'cancelled' });
+    if (order.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Only pending orders can be cancelled' });
+    }
+
+    await query("UPDATE orders SET status = 'cancelled' WHERE id = ?", [id]);
     res.json({ success: true, message: 'Order cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling order:', error);
@@ -154,121 +197,21 @@ router.put('/orders/:id/cancel', async (req, res) => {
   }
 });
 
-// 支付订单
-router.post('/orders/:id/pay', async (req, res) => {
+router.delete('/orders/:id', async (req, res) => {
   try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
     const { id } = req.params;
-    const { paymentMethod } = req.body;
-    
-    const order = await db.collection('orders').doc(id).get();
-    if (!order.data() || order.data().status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Order cannot be paid' });
-    }
-    
-    await db.collection('orders').doc(id).update({ 
-      status: 'paid',
-      payment_method: paymentMethod 
-    });
-    res.json({ success: true, message: 'Order paid successfully' });
-  } catch (error) {
-    console.error('Error paying order:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
 
-// 发货
-router.post('/orders/:id/ship', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const { id } = req.params;
-    const { trackingNumber } = req.body;
-    
-    const order = await db.collection('orders').doc(id).get();
-    if (!order.data() || order.data().status !== 'paid') {
-      return res.status(400).json({ success: false, message: 'Order cannot be shipped' });
-    }
-    
-    await db.collection('orders').doc(id).update({ 
-      status: 'shipped',
-      tracking_number: trackingNumber 
-    });
-    res.json({ success: true, message: 'Order shipped successfully' });
-  } catch (error) {
-    console.error('Error shipping order:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// 获取物流信息
-router.get('/orders/:id/logistics', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const { id } = req.params;
-    const order = await db.collection('orders').doc(id).get();
-    
-    if (!order.data()) {
+    const order = await getOne('SELECT id FROM orders WHERE id = ?', [id]);
+    if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
-    
-    res.json({ 
-      success: true, 
-      data: {
-        trackingNumber: order.data().tracking_number,
-        status: order.data().status
-      }
-    });
-  } catch (error) {
-    console.error('Error getting logistics info:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
 
-// 获取物流跟踪
-router.get('/orders/:id/logistics/tracking', async (req, res) => {
-  try {
-    const { id } = req.params;
-    // 这里简化处理，实际应该调用物流API
-    res.json({ 
-      success: true, 
-      data: [
-        { time: new Date().toISOString(), status: '订单已创建' },
-        { time: new Date().toISOString(), status: '订单已支付' },
-        { time: new Date().toISOString(), status: '订单已发货' }
-      ]
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
+    await query('DELETE FROM order_items WHERE order_id = ?', [id]);
+    await query('DELETE FROM orders WHERE id = ?', [id]);
 
-// 确认收货
-router.put('/orders/:id/confirm', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ success: false, message: 'Database not initialized' });
-    }
-    
-    const { id } = req.params;
-    
-    const order = await db.collection('orders').doc(id).get();
-    if (!order.data() || order.data().status !== 'shipped') {
-      return res.status(400).json({ success: false, message: 'Order cannot be confirmed' });
-    }
-    
-    await db.collection('orders').doc(id).update({ status: 'delivered' });
-    res.json({ success: true, message: 'Order confirmed successfully' });
+    res.json({ success: true, message: 'Order deleted successfully' });
   } catch (error) {
-    console.error('Error confirming order:', error);
+    console.error('Error deleting order:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

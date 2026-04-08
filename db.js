@@ -1,60 +1,59 @@
 require('dotenv').config();
 
-let db = null;
-let app = null;
+const mysql = require('mysql2/promise');
+
+const dbConfig = {
+  host: process.env.DB_HOST || '10.0.0.16',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || 'QMZYXCX',
+  password: process.env.DB_PASSWORD || 'LJN040821.',
+  database: process.env.DB_NAME || 'qmzyxcx',
+  connectionLimit: 10,
+  waitForConnections: true
+};
+
+let pool = null;
 
 try {
-  const cloudbase = require('@cloudbase/node-sdk');
+  pool = mysql.createPool(dbConfig);
   
-  const secretId = process.env.SECRET_ID || '';
-  const secretKey = process.env.SECRET_KEY || '';
-  
-  if (secretId && secretKey && 
-      !secretId.includes('your-secret') && 
-      !secretKey.includes('your-secret')) {
-    app = cloudbase.init({
-      env: process.env.CLOUDBASE_ENV || 'nansijiujia-1gaeh8qpb9ad09a5',
-      secretId: secretId,
-      secretKey: secretKey
-    });
-    db = app.database();
-    console.log('[SUCCESS] CloudBase database initialized successfully');
-    console.log(`[INFO] Environment: ${process.env.CLOUDBASE_ENV}`);
-  } else {
-    console.log('[WARNING] CloudBase credentials not configured or using placeholder values');
-    console.log('[WARNING] Database operations will return mock/empty responses');
-  }
+  (async () => {
+    try {
+      const connection = await pool.getConnection();
+      console.log('[DB] MySQL connected successfully');
+      connection.release();
+    } catch (error) {
+      console.error('[DB ERROR] Failed to connect to MySQL:', error.message);
+      console.error('[DB ERROR] Config:', {
+        host: dbConfig.host,
+        port: dbConfig.port,
+        user: dbConfig.user,
+        database: dbConfig.database
+      });
+    }
+  })();
 } catch (error) {
-  console.error('[ERROR] Failed to initialize CloudBase:', error.message);
+  console.error('[DB ERROR] Failed to create MySQL pool:', error.message);
 }
 
 const query = async (sql, params = []) => {
-  if (!db) {
-    throw new Error('Database not initialized - please check CloudBase credentials');
+  if (!pool) {
+    throw new Error('Database not initialized - please check MySQL configuration');
   }
-  console.log('Query:', sql, params);
-  return [];
+  const [rows] = await pool.execute(sql, params);
+  return rows;
 };
 
-const get = async (sql, params = []) => {
-  if (!db) {
-    throw new Error('Database not initialized - please check CloudBase credentials');
+const getOne = async (sql, params = []) => {
+  if (!pool) {
+    throw new Error('Database not initialized - please check MySQL configuration');
   }
-  console.log('Get:', sql, params);
-  return null;
-};
-
-const run = async (sql, params = []) => {
-  if (!db) {
-    throw new Error('Database not initialized - please check CloudBase credentials');
-  }
-  console.log('Run:', sql, params);
-  return { lastID: 1, changes: 1 };
+  const [rows] = await pool.execute(sql, params);
+  return rows.length > 0 ? rows[0] : null;
 };
 
 module.exports = {
-  db,
+  db: pool,
   query,
-  get,
-  run
+  getOne
 };
