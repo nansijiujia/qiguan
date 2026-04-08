@@ -4,7 +4,7 @@ const { getOne, execute } = require('../db');
 const { verifyToken, generateToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
-router.post('/auth/login', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
@@ -118,7 +118,7 @@ router.post('/auth/login', async (req, res) => {
   }
 });
 
-router.post('/auth/register', async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
 
@@ -203,7 +203,7 @@ router.post('/auth/register', async (req, res) => {
   }
 });
 
-router.get('/auth/profile', verifyToken, async (req, res) => {
+router.get('/profile', verifyToken, async (req, res) => {
   try {
     const user = await getOne(
       'SELECT id, username, email, avatar, role, status, phone, last_login, created_at, updated_at FROM users WHERE id = ?',
@@ -236,7 +236,7 @@ router.get('/auth/profile', verifyToken, async (req, res) => {
   }
 });
 
-router.put('/auth/profile', verifyToken, async (req, res) => {
+router.put('/profile', verifyToken, async (req, res) => {
   try {
     const { email, avatar, phone } = req.body;
     const allowedFields = ['email', 'avatar', 'phone'];

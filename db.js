@@ -178,5 +178,6 @@ module.exports = {
   getOneAsync,
   transaction,
   initDatabase,
+  execute: query,
   getDb: () => db
 };
