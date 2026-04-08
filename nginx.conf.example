@@ -1,0 +1,87 @@
+# 绮管后台 - Nginx 配置参考
+# 文件位置: /etc/nginx/conf.d/ecommerce.conf
+#
+# 使用说明:
+#   1. 将此文件复制到服务器: scp nginx.conf.example server:/etc/nginx/conf.d/ecommerce.conf
+#   2. 或在服务器上手动创建: sudo nano /etc/nginx/conf.d/ecommerce.conf
+#   3. 修改 ssl_certificate 和 ssl_certificate_key 为实际证书路径
+#   4. 测试配置: sudo nginx -t
+#   5. 重载 Nginx: sudo systemctl reload nginx
+
+# HTTP -> HTTPS 强制跳转
+server {
+    listen 80;
+    server_name qimengzhiyue.cn;
+    return 301 https://$host$request_uri;
+}
+
+# HTTPS 主配置
+server {
+    listen 443 ssl http2;
+    server_name qimengzhiyue.cn;
+
+    # SSL 证书配置（Let's Encrypt）
+    ssl_certificate /etc/letsencrypt/live/qimengzhiyue.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/qimengzhiyue.cn/privkey.pem;
+
+    # SSL 安全配置
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # 前端静态文件目录（由 post-receive 钩子自动部署）
+    root /var/www/qimengzhiyue;
+    index index.html;
+
+    # 安全头
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # 前端路由 - Vue/React SPA 模式
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 反向代理 -> 后端 Node.js (端口 3000)
+    # 注意：前端请求路径为 /api/v1/xxx，Nginx 会将完整 URI 转发给后端
+    # 后端 Express 路由挂载在 /api/v1 前缀下，可以正确匹配
+    location /api/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+
+        # WebSocket 支持（如需要）
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+
+        # 传递真实客户端信息
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 缓存控制
+        proxy_cache_bypass $http_upgrade;
+
+        # 超时设置
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # 静态资源缓存策略
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    # 禁止访问隐藏文件
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}

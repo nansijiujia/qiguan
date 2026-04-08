@@ -7,6 +7,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
+const { verifyToken, requireRole } = require('./middleware/auth');
 
 let db;
 try {
@@ -32,25 +35,36 @@ app.use(cors({
 app.options('*', (req, res) => res.status(200).send());
 
 const routes = [
-  ['categories', './routes/categories'],
-  ['products', './routes/products'],
-  ['dashboard', './routes/dashboard'],
-  ['orders', './routes/orders'],
-  ['users', './routes/users'],
-  ['cart', './routes/cart'],
-  ['content', './routes/content'],
-  ['search', './routes/search'],
-  ['health', './routes/health']
+  { path: '/auth', module: './routes/auth' },
+  { path: '/categories', module: './routes/categories' },
+  { path: '/products', module: './routes/products' },
+  { path: '/dashboard', module: './routes/dashboard' },
+  { path: '/orders', module: './routes/orders', middleware: [verifyToken] },
+  { path: '/users', module: './routes/users', middleware: [verifyToken, requireRole('admin')] },
+  { path: '/cart', module: './routes/cart' },
+  { path: '/content', module: './routes/content' },
+  { path: '/search', module: './routes/search' },
+  { path: '/health', module: './routes/health' }
 ];
 
-routes.forEach(([name, path]) => {
+routes.forEach(({ path: routePath, module: modulePath, middleware }) => {
   try {
-    app.use('/api/v1', require(path));
-    console.log(`[Route] /api/v1/${name} ✓`);
+    const router = require(modulePath);
+    if (middleware && middleware.length > 0) {
+      app.use(`/api/v1${routePath}`, ...middleware, router);
+    } else {
+      app.use(`/api/v1${routePath}`, router);
+    }
+    console.log(`[Route] /api/v1${routePath} ✓`);
   } catch (e) {
-    console.error(`[Route] ${name} ✗: ${e.message}`);
+    console.error(`[Route] ${routePath} ✗: ${e.message}`);
   }
 });
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: '绮管后台 API 文档'
+}));
 
 app.get('/', (req, res) => {
   res.json({

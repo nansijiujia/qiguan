@@ -1,13 +1,13 @@
 const express = require('express');
 const crypto = require('crypto');
-const { query, getOne, db } = require('../db');
+const { query, getOne, execute } = require('../db');
 const router = express.Router();
 
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-router.get('/users', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10, role, status, keyword } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -54,7 +54,7 @@ router.get('/users', async (req, res) => {
   }
 });
 
-router.post('/users', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { username, email, password, avatar, role, status } = req.body;
 
@@ -71,10 +71,10 @@ router.post('/users', async (req, res) => {
     }
 
     const passwordHash = hashPassword(password);
-    const result = await query(
+    const result = await execute(
       `INSERT INTO users (username, email, password_hash, avatar, role, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [username, email, passwordHash, avatar || null, role || 'customer', status || 'active']
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+      [username, email, passwordHash, avatar || null, role || 'user', status || 'active']
     );
 
     const newUser = await getOne(
@@ -89,7 +89,7 @@ router.post('/users', async (req, res) => {
   }
 });
 
-router.put('/users/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { username, email, password, avatar, role, status } = req.body;
@@ -114,7 +114,7 @@ router.put('/users/:id', async (req, res) => {
     }
 
     values.push(id);
-    await query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+    await execute(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
 
     const updatedUser = await getOne(
       'SELECT id, username, email, avatar, role, status, last_login, created_at FROM users WHERE id = ?',
@@ -128,7 +128,7 @@ router.put('/users/:id', async (req, res) => {
   }
 });
 
-router.delete('/users/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -137,7 +137,7 @@ router.delete('/users/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    await query('DELETE FROM users WHERE id = ?', [id]);
+    await execute('DELETE FROM users WHERE id = ?', [id]);
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
@@ -145,7 +145,7 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
-router.put('/users/:id/status', async (req, res) => {
+router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -159,7 +159,7 @@ router.put('/users/:id/status', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    await query('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+    await execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
     res.json({ success: true, message: 'User status updated successfully' });
   } catch (error) {
     console.error('Error updating user status:', error);

@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const Database = require('better-sqlite3');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
@@ -14,10 +14,14 @@ if (!fs.existsSync(dbDir)) {
 
 let db;
 try {
-  db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  console.log('[DB] SQLite database initialized successfully');
-  console.log(`[DB] Path: ${dbPath}`);
+  db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      console.error('[DB ERROR] Failed to initialize SQLite:', err.message);
+      process.exit(1);
+    }
+    console.log('[DB] SQLite database initialized successfully');
+    console.log(`[DB] Path: ${dbPath}`);
+  });
 } catch (error) {
   console.error('[DB ERROR] Failed to initialize SQLite:', error.message);
   process.exit(1);
@@ -92,41 +96,110 @@ CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
 `;
 
 try {
-  db.exec(initSQL);
-  console.log('[DB] All tables created/verified successfully');
+  db.exec(initSQL, (err) => {
+    if (err) {
+      console.error('[DB ERROR] Failed to create tables:', err.message);
+    } else {
+      console.log('[DB] All tables created/verified successfully');
+    }
+  });
 } catch (error) {
   console.error('[DB ERROR] Failed to create tables:', error.message);
 }
 
 const query = (sql, params = []) => {
-  return db.prepare(sql).all(...params);
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
 };
 
 const queryAsync = async (sql, params = []) => {
-  return db.prepare(sql).all(...params);
+  return query(sql, params);
 };
 
 const getOne = (sql, params = []) => {
-  return db.prepare(sql).get(...params) || null;
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(row || null);
+      }
+    });
+  });
 };
 
 const getOneAsync = async (sql, params = []) => {
-  return db.prepare(sql).get(...params) || null;
+  return getOne(sql, params);
 };
 
 const run = (sql, params = []) => {
-  const result = db.prepare(sql).run(...params);
-  return { changes: result.changes, lastInsertRowid: result.lastInsertRowid };
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ changes: this.changes, lastInsertRowid: this.lastID });
+      }
+    });
+  });
 };
 
 const runAsync = async (sql, params = []) => {
-  const result = db.prepare(sql).run(...params);
-  return { changes: result.changes, lastInsertRowid: result.lastInsertRowid };
+  return run(sql, params);
+};
+
+const execute = (sql, params = []) => {
+  const sqlTrim = sql.trim().toUpperCase();
+  if (sqlTrim.startsWith('SELECT') || sqlTrim.startsWith('PRAGMA') || sqlTrim.startsWith('EXPLAIN')) {
+    return query(sql, params);
+  } else {
+    return run(sql, params).then(result => {
+      return {
+        insertId: result.lastInsertRowid,
+        affectedRows: result.changes,
+        rows: sqlTrim.startsWith('INSERT') ? [] : undefined
+      };
+    });
+  }
+};
+
+const executeAsync = async (sql, params = []) => {
+  return execute(sql, params);
 };
 
 const transaction = (fn) => {
-  const txn = db.transaction(() => fn(db));
-  return txn();
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION', (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        try {
+          const result = fn(db);
+          db.run('COMMIT', (err) => {
+            if (err) {
+              db.run('ROLLBACK');
+              reject(err);
+            } else {
+              resolve(result);
+            }
+          });
+        } catch (error) {
+          db.run('ROLLBACK');
+          reject(error);
+        }
+      });
+    });
+  });
 };
 
 module.exports = {
@@ -137,5 +210,7 @@ module.exports = {
   getOneAsync,
   run,
   runAsync,
+  execute,
+  executeAsync,
   transaction
 };
