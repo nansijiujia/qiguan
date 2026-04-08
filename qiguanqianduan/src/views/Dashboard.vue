@@ -94,12 +94,12 @@ const productChartRef = ref(null)
 let salesChart = null
 let productChart = null
 
-// 统计卡片数据
+// 统计卡片数据 - 初始值为0，等待从API加载真实数据
 const statCards = ref([
-  { title: '总商品数', value: '1,234', trend: 12.5, icon: 'Goods', iconBg: '#ecf5ff', iconColor: '#409eff' },
-  { title: '总订单数', value: '567', trend: 8.3, icon: 'Document', iconBg: '#f0f9eb', iconColor: '#67c23a' },
-  { title: '总营收', value: '¥89,432', trend: -2.4, icon: 'Money', iconBg: '#fdf6ec', iconColor: '#e6a23c' },
-  { title: '总用户数', value: '8,901', trend: 15.7, icon: 'User', iconBg: '#fef0f0', iconColor: '#f56c6c' }
+  { title: '总商品数', value: '0', trend: 0, icon: 'Goods', iconBg: '#ecf5ff', iconColor: '#409eff' },
+  { title: '总订单数', value: '0', trend: 0, icon: 'Document', iconBg: '#f0f9eb', iconColor: '#67c23a' },
+  { title: '总营收', value: '¥0', trend: 0, icon: 'Money', iconBg: '#fdf6ec', iconColor: '#e6a23c' },
+  { title: '总用户数', value: '0', trend: 0, icon: 'User', iconBg: '#fef0f0', iconColor: '#f56c6c' }
 ])
 
 // 最近订单数据
@@ -128,13 +128,13 @@ const getStatusText = (status) => {
   return map[status] || status
 }
 
-// 初始化销售趋势图
+// 初始化销售趋势图 - 显示空状态，等待真实数据
 const initSalesChart = () => {
   if (!salesChartRef.value) return
-  
+
   if (salesChart) salesChart.dispose()
   salesChart = echarts.init(salesChartRef.value)
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -157,15 +157,15 @@ const initSalesChart = () => {
         type: 'line',
         smooth: true,
         areaStyle: { opacity: 0.15 },
-        data: [3200, 4500, 3800, 5200, 4800, 6500, 7200],
+        data: [0, 0, 0, 0, 0, 0, 0],
         itemStyle: { color: '#409eff' }
       },
       {
         name: '订单数',
         type: 'bar',
         barWidth: '40%',
-        data: [32, 45, 38, 52, 48, 65, 72],
-        itemStyle: { 
+        data: [0, 0, 0, 0, 0, 0, 0],
+        itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#67c23a' },
             { offset: 1, color: '#95d475' }
@@ -174,43 +174,37 @@ const initSalesChart = () => {
       }
     ]
   }
-  
+
   salesChart.setOption(option)
 }
 
-// 初始化商品销量图
+// 初始化商品销量图 - 显示空状态，等待真实数据
 const initProductChart = () => {
   if (!productChartRef.value) return
-  
+
   if (productChart) productChart.dispose()
   productChart = echarts.init(productChartRef.value)
-  
+
   const option = {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
     xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { type: 'dashed' } } },
     yAxis: {
       type: 'category',
-      data: ['无线耳机', '智能手表', '蓝牙音箱', '手机壳', '充电宝'],
+      data: ['暂无数据'],
       axisLine: { lineStyle: { color: '#dcdfe6' } }
     },
     series: [{
       type: 'bar',
       barWidth: '50%',
-      data: [892, 756, 634, 521, 456],
+      data: [0],
       itemStyle: {
         borderRadius: [0, 4, 4, 0],
-        color: (params) => {
-          const colors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399']
-          return new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: colors[params.dataIndex] },
-            { offset: 1, color: colors[params.dataIndex] + '80' }
-          ])
-        }
+        color: '#409eff'
       }
     }]
   }
-  
+
   productChart.setOption(option)
 }
 
@@ -232,7 +226,7 @@ const loadData = async () => {
     }
     
     if (ordersRes.data?.data?.list) {
-      recentOrders.value = ordersRes.data.list.slice(0, 10)
+      recentOrders.value = ordersRes.data.data.list.slice(0, 10)
     }
   } catch (error) {
     console.error('加载数据失败:', error)

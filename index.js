@@ -13,8 +13,25 @@ const { verifyToken, requireRole } = require('./middleware/auth');
 
 let db;
 try {
-  db = require('./db');
-  console.log('[DB] Status:', !!db?.db ? 'Connected' : 'Mock mode');
+  const dbType = process.env.DB_TYPE || 'sqlite';
+  console.log(`[DB] Database type: ${dbType}`);
+
+  if (dbType === 'mysql') {
+    db = require('./db_mysql');
+    db.initPool().then(() => {
+      console.log('[MySQL] ✅ Connected to MySQL database');
+    }).catch(err => {
+      console.error('[MySQL] ❌ Connection failed:', err.message);
+      console.log('[DB] Falling back to SQLite...');
+      db = require('./db');
+      db.initDatabase();
+    });
+  } else {
+    db = require('./db');
+    db.initDatabase();
+  }
+
+  console.log('[DB] Status:', !!db ? 'Connected' : 'Mock mode');
 } catch (e) {
   console.error('[DB] Error:', e.message);
   db = null;

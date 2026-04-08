@@ -87,12 +87,14 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      data: formattedList,
-      pagination: {
-        total,
-        totalPages,
-        page,
-        limit
+      data: {
+        list: formattedList,
+        pagination: {
+          total,
+          totalPages,
+          page,
+          limit
+        }
       },
       responseTime: Date.now() - startTime
     });
