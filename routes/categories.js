@@ -157,6 +157,18 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // 检查分类名称是否已存在
+    const existing = await getOne('SELECT id FROM categories WHERE name = ?', [name.trim()]);
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'DUPLICATE_ERROR',
+          message: `分类名称"${name}"已存在`
+        }
+      });
+    }
+
     if (parent_id !== undefined && parent_id !== null) {
       const parentExists = await getOne('SELECT id FROM categories WHERE id = ?', [parent_id]);
       if (!parentExists) {
@@ -172,7 +184,7 @@ router.post('/', async (req, res) => {
 
     const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, datetime('now'))`;
     const result = await execute(sql, [
-      name,
+      name.trim(),
       parent_id || null,
       sort_order || 0,
       status || 'active'
@@ -183,7 +195,7 @@ router.post('/', async (req, res) => {
       success: true,
       data: {
         id: insertId,
-        name,
+        name: name.trim(),
         parent_id: parent_id || null,
         sort_order: sort_order || 0,
         status: status || 'active'
@@ -191,7 +203,7 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('[ERROR] Adding category:', error);
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (error.code === 'ER_DUP_ENTRY' || error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return res.status(409).json({
         success: false,
         error: {
