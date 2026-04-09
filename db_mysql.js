@@ -35,40 +35,62 @@ const { log } = console;
  * ============================================================
  */
 
-// 数据库配置
 const dbConfig = {
-    host: process.env.DB_HOST || '10.0.0.16',
-    port: parseInt(process.env.DB_PORT) || 3306,
-    user: process.env.DB_USER || 'QMZYXCX',
-    password: process.env.DB_PASSWORD || 'LJN040821.',
-    database: process.env.DB_NAME || 'qmzyxcx',
-    
-    // 连接池配置
-    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
-    queueLimit: parseInt(process.env.DB_QUEUE_LIMIT) || 0,
-    waitForConnections: true,
-    
-    // 字符集与时区
-    charset: process.env.DB_CHARSET || 'utf8mb4',
-    timezone: process.env.DB_TIMEZONE || '+08:00',
-    
-    // 超时设置
-    connectTimeout: parseInt(process.env.DB_TIMEOUT) || 60000,
-    acquireTimeout: 60000,
-    
-    // SSL配置 (生产环境建议开启)
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-    
-    // 调试模式
-    debug: process.env.DB_DEBUG === 'true'
+  host: process.env.DB_HOST || '10.0.0.16',
+  port: parseInt(process.env.DB_PORT) || 3306,
+  user: process.env.DB_USER || 'QMZYXCX',
+  password: process.env.DB_PASSWORD || 'LJN040821.',
+  database: process.env.DB_NAME || 'qmzyxcx',
+
+  // 连接池配置 (生产级优化)
+  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 20,
+  queueLimit: parseInt(process.env.DB_QUEUE_LIMIT) || 100,
+  waitForConnections: true,
+  maxIdle: parseInt(process.env.DB_MAX_IDLE) || 10,
+  idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT) || 60000,
+  acquireTimeout: 30000,
+
+  // 字符集与时区
+  charset: 'utf8mb4',
+  timezone: '+08:00',
+
+  // SSL配置 (生产环境可选)
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+
+  // 调试模式 (生产环境关闭)
+  debug: process.env.NODE_ENV === 'development',
+
+  // 连接保活 (防止MySQL wait_timeout断开)
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 };
 
 // 全局连接池变量
 let pool;
 
+// 健康检查定时器
+let healthCheckInterval;
+
 /**
- * 初始化数据库连接池
+ * 启动定期健康检查 (每5分钟)
  */
+function startHealthCheck() {
+  if (healthCheckInterval) clearInterval(healthCheckInterval);
+
+  healthCheckInterval = setInterval(async () => {
+    try {
+      const poolInstance = getPool();
+      await poolInstance.query('SELECT 1 AS ping');
+      if (process.env.NODE_ENV === 'development') {
+        log('[MySQL/HEALTHCHECK] ✅ Ping successful', 'info');
+      }
+    } catch (error) {
+      log(`[MySQL/HEALTHCHECK] ❌ Health check failed: ${error.message}`, 'error');
+    }
+  }, 5 * 60 * 1000);
+}
+
+/**
 async function initPool() {
     try {
         pool = mysql.createPool(dbConfig);
@@ -86,6 +108,9 @@ async function initPool() {
         log(`[MySQL/TDSQL-C] 🔧 版本: ${rows[0].version}`);
         
         connection.release();
+
+        // 启动定期健康检查
+        startHealthCheck();
         
         return pool;
         

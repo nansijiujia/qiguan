@@ -50,3 +50,38 @@ export const dashboardApi = {
   getOverview: () => request.get('/v1/dashboard/overview'),
   getSalesData: (params) => request.get('/v1/dashboard/sales', { params })
 }
+
+export const couponApi = {
+  getList: (params) => request.get('/v1/coupons', { params }),
+  getCoupons: (params) => request.get('/v1/coupons', { params }),
+  add: (data) => request.post('/v1/coupons', data),
+  addCoupon: (data) => request.post('/v1/coupons', data),
+  update: (id, data) => request.put(`/v1/coupons/${id}`, data),
+  updateCoupon: (id, data) => request.put(`/v1/coupons/${id}`, data),
+  delete: (id) => request.delete(`/v1/coupons/${id}`),
+  deleteCoupon: (id) => request.delete(`/v1/coupons/${id}`),
+  getDetail: (id) => request.get(`/v1/coupons/${id}`),
+  getStats: (id) => request.get(`/v1/coupons/${id}/stats`),
+  getOverviewStats: () => request.get('/v1/coupons/stats/overview')
+}
+
+export const contentApi = {
+  // Banner管理
+  getBanners: (params) => request.get('/v1/content/banners', { params }),
+  createBanner: (data) => request.post('/v1/content/banners', data),
+  updateBanner: (id, data) => request.put(`/v1/content/banners/${id}`, data),
+  deleteBanner: (id) => request.delete(`/v1/content/banners/${id}`),
+  reorderBanners: (orders) => request.put('/v1/content/banners/reorder', orders),
+
+  // 首页配置
+  getHomepageConfig: () => request.get('/v1/content/homepage/config'),
+  updateHomepageConfig: (data) => request.put('/v1/content/homepage/config', data),
+  getHomepagePreview: () => request.get('/v1/content/homepage/preview'),
+
+  // 文件上传
+  uploadImage: (formData) => {
+    return request.post('/v1/content/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
+}

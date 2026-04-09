@@ -43,6 +43,18 @@ const routes = [
         name: 'Users',
         component: () => import('@/views/Users.vue'),
         meta: { title: '用户管理', icon: 'User' }
+      },
+      {
+        path: 'coupons',
+        name: 'Coupons',
+        component: () => import('@/views/Coupons.vue'),
+        meta: { title: '优惠券管理', icon: 'Ticket' }
+      },
+      {
+        path: 'content-manage',
+        name: 'ContentManage',
+        component: () => import('@/views/ContentManage.vue'),
+        meta: { title: '内容管理', icon: 'Document' }
       }
     ]
   }

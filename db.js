@@ -1,3 +1,10 @@
+/**
+ * @deprecated 此模块已废弃！请使用 db_mysql.js 连接云数据库
+ * @see db_mysql.js 腾讯云TDSQL-C MySQL兼容数据库模块
+ * @removed Version 4.0 - 生产环境强制使用云数据库
+ */
+console.warn('[DEPRECATED] db.js (SQLite) is deprecated. Use db_mysql.js for cloud database.');
+
 require('dotenv').config();
 const Database = require('better-sqlite3');
 const path = require('path');

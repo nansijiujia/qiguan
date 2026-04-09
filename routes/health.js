@@ -1,5 +1,5 @@
 const express = require('express');
-const { query } = require('../db');
+const { query } = require('../db_mysql');
 const router = express.Router();
 
 // 健康检查

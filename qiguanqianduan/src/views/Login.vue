@@ -93,11 +93,23 @@ const handleLogin = async () => {
         ElMessage.error(res.error?.message || '登录失败')
       }
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('[LOGIN] Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        timestamp: new Date().toISOString()
+      })
+
       if (error.response?.status === 401) {
         ElMessage.error('用户名或密码错误')
+      } else if (error.response?.status === 403) {
+        ElMessage.error(error.response?.data?.error?.message || '账号已被禁用或未激活')
+      } else if (error.response?.status === 500) {
+        ElMessage.error('服务器内部错误，请稍后重试')
+      } else if (!error.response) {
+        ElMessage.error('无法连接到服务器，请检查网络连接')
       } else {
-        ElMessage.error(error.message || '登录失败，请稍后重试')
+        ElMessage.error(error.response?.data?.error?.message || error.message || '登录失败，请稍后重试')
       }
     } finally {
       loading.value = false

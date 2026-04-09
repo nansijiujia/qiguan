@@ -1,5 +1,5 @@
 const express = require('express');
-const { query, getOne, execute } = require('../db');
+const { query, getOne, execute } = require('../db_mysql');
 const router = express.Router();
 
 function escapeHtml(text) {

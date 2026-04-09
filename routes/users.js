@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { query, getOne, execute } = require('../db');
+const { query, getOne, execute } = require('../db_mysql');
 const router = express.Router();
 
 router.get('/', async (req, res) => {

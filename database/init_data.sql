@@ -10,11 +10,11 @@ INSERT INTO categories (name, parent_id, sort_order, status) VALUES
 ('男装', 7, 1, 'active'),
 ('女装', 7, 2, 'active');
 
--- 插入用户数据
-INSERT INTO users (username, email, password_hash, role, status) VALUES
-('admin', 'admin@example.com', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'admin', 'active'),
-('user1', 'user1@example.com', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'user', 'active'),
-('manager', 'manager@example.com', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'manager', 'active');
+-- 插入用户数据 (密码: admin123, 使用bcrypt哈希)
+INSERT INTO users (username, email, password, role, status) VALUES
+('admin', 'admin@example.com', '$2b$10$5IWMn9ZaV26OORwID2nzi..TYSrGZjXCcIowVEwtKb55EypbLBDAO', 'admin', 'active'),
+('user1', 'user1@example.com', '$2b$10$5IWMn9ZaV26OORwID2nzi..TYSrGZjXCcIowVEwtKb55EypbLBDAO', 'user', 'active'),
+('manager', 'manager@example.com', '$2b$10$5IWMn9ZaV26OORwID2nzi..TYSrGZjXCcIowVEwtKb55EypbLBDAO', 'manager', 'active');
 
 -- 插入商品数据
 INSERT INTO products (name, description, price, stock, category_id, image, status) VALUES

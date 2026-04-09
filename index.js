@@ -11,31 +11,28 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const { verifyToken, requireRole } = require('./middleware/auth');
 
-let db;
-try {
-  const dbType = process.env.DB_TYPE || 'sqlite';
-  console.log(`[DB] Database type: ${dbType}`);
+// 强制使用云MySQL数据库，不支持本地SQLite
+const dbType = process.env.DB_TYPE || 'mysql';
 
-  if (dbType === 'mysql') {
-    db = require('./db_mysql');
-    db.initPool().then(() => {
-      console.log('[MySQL] ✅ Connected to MySQL database');
-    }).catch(err => {
-      console.error('[MySQL] ❌ Connection failed:', err.message);
-      console.log('[DB] Falling back to SQLite...');
-      db = require('./db');
-      db.initDatabase();
-    });
-  } else {
-    db = require('./db');
-    db.initDatabase();
-  }
-
-  console.log('[DB] Status:', !!db ? 'Connected' : 'Mock mode');
-} catch (e) {
-  console.error('[DB] Error:', e.message);
-  db = null;
+if (dbType !== 'mysql') {
+  console.error('[FATAL] DB_TYPE must be "mysql" for production. Current:', dbType);
+  console.error('[FATAL] Local SQLite database is deprecated. Please configure cloud database.');
+  process.exit(1);
 }
+
+let db = require('./db_mysql');
+
+db.initPool()
+  .then(() => {
+    console.log('[MySQL/TDSQL-C] ✅ Connected to cloud database successfully');
+    console.log(`[MySQL/TDSQL-C] Host: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
+    console.log(`[MySQL/TDSQL-C] Database: ${process.env.DB_NAME}`);
+  })
+  .catch(err => {
+    console.error('[FATAL] Cloud database connection failed:', err.message);
+    console.error('[FATAL] Cannot start without database. Exiting...');
+    process.exit(1);
+  });
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -70,10 +67,13 @@ const routes = [
   { path: '/products', module: './routes/products', middleware: [verifyToken] },
   { path: '/dashboard', module: './routes/dashboard', middleware: [verifyToken] },
   { path: '/orders', module: './routes/orders', middleware: [verifyToken] },
-  { path: '/users', module: './routes/users', middleware: [verifyToken, requireRole('admin')] },
+  { path: '/admin/users', module: './routes/users', middleware: [verifyToken, requireRole('admin')] },
+  { path: '/users', module: './routes/user_profile', middleware: [verifyToken] },
   { path: '/cart', module: './routes/cart', middleware: [verifyToken] },
   { path: '/content', module: './routes/content', middleware: [verifyToken] },
   { path: '/search', module: './routes/search' },
+  { path: '/admin/coupons', module: './routes/coupons', middleware: [verifyToken, requireRole('admin')] },
+  { path: '/coupons', module: './routes/coupons_public', middleware: [verifyToken] },
   { path: '/health', module: './routes/health' }
 ];
 
@@ -90,6 +90,11 @@ routes.forEach(({ path: routePath, module: modulePath, middleware }) => {
     console.error(`[Route] ${routePath} ✗: ${e.message}`);
   }
 });
+
+// P0 FIX #1: 添加分类路由别名 - 兼容小程序端调用路径
+// 小程序调用: /api/v1/products/category -> 实际映射到: /api/v1/categories
+app.use('/api/v1/products/category', require('./routes/categories'));
+console.log('[Route] /api/v1/products/category (alias) ✓');
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customCss: '.swagger-ui .topbar { display: none }',

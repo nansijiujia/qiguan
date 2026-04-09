@@ -45,6 +45,16 @@
         <el-icon><User /></el-icon>
         <template #title>用户管理</template>
       </el-menu-item>
+
+      <el-menu-item index="/coupons">
+        <el-icon><Ticket /></el-icon>
+        <template #title>优惠券管理</template>
+      </el-menu-item>
+
+      <el-menu-item index="/content-manage">
+        <el-icon><Document /></el-icon>
+        <template #title>内容管理</template>
+      </el-menu-item>
     </el-menu>
 
     <!-- 折叠按钮 -->

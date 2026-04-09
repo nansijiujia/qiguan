@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { getOne, execute } = require('../db');
+const { getOne, execute } = require('../db_mysql');
 const { verifyToken, generateToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
@@ -71,7 +71,19 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const passwordHash = user.password || user.password_hash;
+    if (!passwordHash) {
+      console.error('[AUTH] No password field found for user:', user.username);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SERVER_ERROR',
+          message: 'User account configuration error'
+        }
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, passwordHash);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
