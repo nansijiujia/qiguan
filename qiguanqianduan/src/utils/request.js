@@ -48,13 +48,17 @@ service.interceptors.response.use(
           ElMessage.error('权限不足，无法执行此操作')
           break
         default:
-          ElMessage.error(errorMsg)
+          if (errorCode === 'CONFLICT') {
+            ElMessage.warning(errorMsg)
+          } else {
+            ElMessage.error(errorMsg)
+          }
       }
 
       return Promise.reject(new Error(errorMsg))
     }
 
-    return res
+    return response
   },
   (error) => {
     console.error('[API Request Failed]', {
