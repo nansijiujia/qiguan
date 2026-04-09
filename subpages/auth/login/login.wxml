@@ -1,0 +1,40 @@
+<view class="login-page">
+  <view class="login-container">
+    <view class="logo-section">
+      <view class="logo">绮梦之约</view>
+      <view class="slogan">开启您的购物之旅</view>
+    </view>
+    
+    <view class="login-content">
+      <view class="welcome-section">
+        <view class="welcome-icon">
+          <text class="icon-wechat">微信</text>
+        </view>
+        <view class="welcome-title">欢迎使用微信一键登录</view>
+        <view class="welcome-desc">使用微信账号快速登录，安全便捷</view>
+      </view>
+
+      <view class="error-section" wx:if="{{errorMsg}}">
+        <view class="error-msg">{{errorMsg}}</view>
+        <text class="retry-link" bindtap="onRetry">点击重试</text>
+      </view>
+
+      <button 
+        type="primary" 
+        bindtap="onWechatLogin" 
+        class="wechat-login-btn"
+        loading="{{loading}}"
+        disabled="{{loading}}"
+      >
+        <text class="btn-text">{{loading ? '登录中...' : '微信一键登录'}}</text>
+      </button>
+
+      <view class="privacy-section">
+        <text class="privacy-text">登录即表示同意</text>
+        <text class="privacy-link">《用户协议》</text>
+        <text class="privacy-text">和</text>
+        <text class="privacy-link">《隐私政策》</text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -957,3 +957,536 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* 商品评价模块 */
+.review-section {
+  background-color: var(--bg-primary);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  margin: 0 1rem 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.review-section:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.more-btn {
+  font-size: 0.875rem;
+  color: var(--primary-color);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.more-btn:hover {
+  color: var(--primary-dark);
+  transform: translateX(2px);
+}
+
+.review-summary {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background-color: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.review-summary:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--primary-light);
+}
+
+.rating-average {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.rating-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--warning-color);
+  margin-right: 1rem;
+  text-shadow: 0 1px 2px rgba(245, 158, 11, 0.2);
+  transition: all 0.3s ease;
+}
+
+.rating-value:hover {
+  transform: scale(1.05);
+}
+
+.rating-stars {
+  display: flex;
+  margin-right: 1rem;
+}
+
+.rating-count {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  transition: all 0.3s ease;
+}
+
+.rating-summary:hover .rating-count {
+  color: var(--text-secondary);
+}
+
+.rating-distribution {
+  margin-top: 1rem;
+}
+
+.rating-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.rating-item:hover {
+  transform: translateX(5px);
+}
+
+.rating-level {
+  width: 3rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.rating-bar {
+  flex: 1;
+  height: 0.5rem;
+  background-color: var(--bg-tertiary);
+  border-radius: 0.25rem;
+  margin: 0 1rem;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.rating-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--warning-light), var(--warning-color));
+  border-radius: 0.25rem;
+  transition: width 0.5s ease;
+  box-shadow: 0 1px 2px rgba(245, 158, 11, 0.3);
+}
+
+.rating-percent {
+  width: 3rem;
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  text-align: right;
+  font-weight: 500;
+}
+
+.review-list {
+  margin-top: 1.5rem;
+}
+
+.review-item {
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.review-item:first-child {
+  border-top: none;
+}
+
+.review-item:hover {
+  transform: translateX(5px);
+  background-color: rgba(99, 102, 241, 0.02);
+  border-radius: 0.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.review-user {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  margin-right: 0.75rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.user-avatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  transition: all 0.3s ease;
+}
+
+.review-item:hover .user-name {
+  color: var(--primary-color);
+}
+
+.review-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  transition: all 0.3s ease;
+}
+
+.review-item:hover .review-time {
+  color: var(--text-secondary);
+}
+
+.review-rating {
+  display: flex;
+}
+
+.review-content {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background-color: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--primary-light);
+  transition: all 0.3s ease;
+}
+
+.review-item:hover .review-content {
+  background-color: var(--bg-tertiary);
+  border-left-color: var(--primary-color);
+  transform: translateX(5px);
+}
+
+.review-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.review-image {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+.review-image:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 2rem 0;
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  background-color: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px dashed var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.no-reviews:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--primary-light);
+}
+
+/* 商品问答模块 */
+.question-section {
+  background-color: var(--bg-primary);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  margin: 0 1rem 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.question-section:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.question-list {
+  margin-top: 1.5rem;
+}
+
+.question-item {
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.question-item:first-child {
+  border-top: none;
+}
+
+.question-item:hover {
+  transform: translateX(5px);
+  background-color: rgba(99, 102, 241, 0.02);
+  border-radius: 0.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
+}
+
+.question-header {
+  margin-bottom: 0.75rem;
+}
+
+.question-user {
+  display: flex;
+  align-items: center;
+}
+
+.question-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  transition: all 0.3s ease;
+}
+
+.question-item:hover .question-time {
+  color: var(--text-secondary);
+}
+
+.question-content {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background-color: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--info-light);
+  transition: all 0.3s ease;
+}
+
+.question-item:hover .question-content {
+  background-color: var(--bg-tertiary);
+  border-left-color: var(--info-color);
+  transform: translateX(5px);
+}
+
+.answer-list {
+  margin-top: 0.75rem;
+  padding-left: 3.25rem;
+}
+
+.answer-item {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--success-light);
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.answer-item:hover {
+  background-color: var(--bg-tertiary);
+  border-left-color: var(--success-color);
+  transform: translateX(5px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.answer-header {
+  margin-bottom: 0.5rem;
+}
+
+.answer-user {
+  display: flex;
+  align-items: center;
+}
+
+.answer-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  transition: all 0.3s ease;
+}
+
+.answer-item:hover .answer-time {
+  color: var(--text-secondary);
+}
+
+.answer-content {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  transition: all 0.3s ease;
+}
+
+.answer-item:hover .answer-content {
+  color: var(--text-primary);
+}
+
+.no-answers {
+  padding-left: 3.25rem;
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border: 1px dashed var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.no-answers:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--warning-light);
+}
+
+.no-questions {
+  text-align: center;
+  padding: 2rem 0;
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  background-color: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px dashed var(--border-light);
+  transition: all 0.3s ease;
+}
+
+.no-questions:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--primary-light);
+}
+
+.ask-question-btn {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: var(--bg-secondary);
+  border: 2px dashed var(--primary-light);
+  border-radius: 0.75rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--primary-color);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ask-question-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background-color: rgba(99, 102, 241, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.ask-question-btn:hover::before {
+  width: 5rem;
+  height: 5rem;
+}
+
+.ask-question-btn:hover {
+  background-color: rgba(99, 102, 241, 0.05);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .review-section,
+  .question-section {
+    padding: 1.25rem;
+    margin: 0 0.75rem 0.75rem;
+  }
+  
+  .rating-average {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .rating-value {
+    margin-bottom: 0.5rem;
+  }
+  
+  .rating-stars {
+    margin-bottom: 0.5rem;
+  }
+  
+  .review-image {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+  
+  .answer-list {
+    padding-left: 2.75rem;
+  }
+}
+
+@media (max-width: 375px) {
+  .review-section,
+  .question-section {
+    padding: 1rem;
+  }
+  
+  .rating-level {
+    width: 2.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .rating-bar {
+    margin: 0 0.75rem;
+  }
+  
+  .rating-percent {
+    width: 2.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .review-image {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .answer-list {
+    padding-left: 2.25rem;
+  }
+}

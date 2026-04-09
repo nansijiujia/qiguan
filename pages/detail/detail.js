@@ -1,77 +1,32 @@
 // detail.js
 const { api, handleApiError } = require('../../utils/api');
+const { saveToCache, loadFromCache, CACHE_CONFIG } = require('../../utils/cache');
+const { preloadImages } = require('../../utils/image');
+const { addToCart } = require('../../utils/cart');
+const { checkStock } = require('../../utils/stock');
 
 Page({
   data: {
-    // 商品信息
-    productInfo: {
-      id: 1,
-      title: '高级按摩器 多频振动 静音设计',
-      subtitle: '采用优质硅胶材质，10种振动模式，IPX7防水，静音设计，舒适体验',
-      price: 299,
-      originalPrice: 399,
-      discount: 7.5,
-      sales: 12580,
-
-      stock: 156,
-      isNew: true,
-      isHot: true,
-      brand: '绮梦之约'
-    },
-    // 规格组
-    specGroups: [
-      {
-        id: 1,
-        name: '颜色',
-        options: [
-          { id: 1, name: '粉色' },
-          { id: 2, name: '蓝色' },
-          { id: 3, name: '紫色' }
-        ]
-      },
-      {
-        id: 2,
-        name: '尺寸',
-        options: [
-          { id: 4, name: '标准款' },
-          { id: 5, name: '加大款' }
-        ]
-      }
-    ],
-    // 规格组合价格和库存
-    specCombination: {
-      '1-4': { price: 299, stock: 100 },
-      '1-5': { price: 349, stock: 50 },
-      '2-4': { price: 319, stock: 80 },
-      '2-5': { price: 369, stock: 40 },
-      '3-4': { price: 329, stock: 70 },
-      '3-5': { price: 379, stock: 30 }
-    },
-    // 选中的规格
-    selectedSpecs: {
-      1: 1,
-      2: 4
-    },
-    // 购买数量
+    productInfo: null,
+    specGroups: [],
+    specCombination: {},
+    selectedSpecs: {},
     quantity: 1,
-    // 收藏状态
     isFavorite: false,
-    // 加载状态
-    loading: false,
-    // 当前选中规格的库存
-    currentStock: 100,
-    // 库存提示
-    stockTip: ''
+    loading: true,
+    currentStock: 0,
+    stockTip: '',
+    productId: null
   },
 
   onLoad: function (options) {
     console.log('详情页加载');
-    // 验证并绑定商品ID
     if (options.id) {
       const goodsId = parseInt(options.id);
       if (!isNaN(goodsId) && goodsId > 0) {
-        this.data.productInfo.id = goodsId;
+        this.setData({ productId: goodsId });
         console.log('商品ID绑定成功:', goodsId);
+        this.loadGoodsData();
       } else {
         console.error('无效的商品ID:', options.id);
         wx.showToast({
@@ -82,81 +37,111 @@ Page({
         setTimeout(() => {
           wx.navigateBack();
         }, 2000);
-        return;
       }
+    } else {
+      wx.showToast({
+        title: '商品不存在',
+        icon: 'none',
+        duration: 2000
+      });
+      setTimeout(() => {
+        wx.navigateBack();
+      }, 2000);
     }
-    this.loadGoodsData();
   },
 
   onShow: function () {
     console.log('详情页显示');
   },
 
-  // 加载商品数据
   loadGoodsData: async function () {
+    const productId = this.data.productId;
+    if (!productId) return;
+    
     this.setData({ loading: true });
     try {
-      // 尝试从本地缓存加载
+      wx.showLoading({
+        title: '加载中...',
+        mask: true
+      });
+      
       const cachedData = this.loadFromCache();
       if (cachedData) {
         this.setData({
           productInfo: cachedData.productInfo,
           specGroups: cachedData.specGroups || [],
+          specCombination: cachedData.specCombination || {},
           isFavorite: cachedData.isFavorite || false,
-          loading: false
+          currentStock: cachedData.productInfo?.stock || 0
         });
+        this.preloadImages(cachedData.productInfo.images || []);
       }
       
-      // 采用正向传输方式，从后端获取商品详情
       const [productData, favoriteStatus] = await Promise.all([
-        api.product.getDetail(this.data.productInfo.id),
-        api.favorite.check(this.data.productInfo.id)
+        api.product.getDetail(productId),
+        api.favorite.check(productId).catch(() => ({ isFavorite: false }))
       ]);
       
-      // 更新商品信息
+      const stockInfo = checkStock(productData.stock || 0);
+      let currentStock = stockInfo.stock;
+      let stockTip = stockInfo.stockTip;
+      
       this.setData({
         productInfo: productData,
         specGroups: productData.specs || [],
+        specCombination: productData.specCombination || {},
         isFavorite: favoriteStatus.isFavorite || false,
-        loading: false
+        currentStock: currentStock,
+        stockTip: stockTip
       });
       
-      // 缓存数据到本地
+      this.preloadImages(productData.images || []);
+      
       this.saveToCache({
         productInfo: productData,
         specGroups: productData.specs || [],
+        specCombination: productData.specCombination || {},
         isFavorite: favoriteStatus.isFavorite || false
       });
     } catch (error) {
-      handleApiError(error);
+      console.error('加载商品数据失败:', error);
+      wx.showToast({
+        title: '加载失败，请重试',
+        icon: 'none',
+        duration: 2000
+      });
+    } finally {
       this.setData({ loading: false });
+      wx.hideLoading();
     }
   },
   
-  // 从本地缓存加载数据
   loadFromCache: function () {
     try {
-      const cacheKey = `product_${this.data.productInfo.id}`;
-      const cachedData = wx.getStorageSync(cacheKey);
-      if (cachedData && Date.now() < cachedData.expiry) {
-        return cachedData;
-      }
+      const cacheKey = `product_${this.data.productId}`;
+      const cachedData = loadFromCache(cacheKey);
+      return cachedData;
     } catch (error) {
       console.error('加载缓存失败:', error);
     }
     return null;
   },
   
-  // 保存数据到本地缓存
   saveToCache: function (data) {
     try {
-      const cacheKey = `product_${this.data.productInfo.id}`;
-      wx.setStorageSync(cacheKey, {
-        ...data,
-        expiry: Date.now() + 10 * 60 * 1000 // 10分钟缓存
-      });
+      const cacheKey = `product_${this.data.productId}`;
+      saveToCache(cacheKey, data, CACHE_CONFIG.productExpiry);
     } catch (error) {
       console.error('保存缓存失败:', error);
+    }
+  },
+  
+  // 预加载图片
+  preloadImages: function (images) {
+    if (Array.isArray(images) && images.length > 0) {
+      images.forEach(image => {
+        wx.getImageInfo({ url: image });
+      });
     }
   },
 
@@ -184,13 +169,8 @@ Page({
       stock = combination.stock;
       
       // 生成库存提示
-      if (stock <= 0) {
-        stockTip = '库存不足';
-      } else if (stock < 10) {
-        stockTip = `仅剩${stock}件`;
-      } else if (stock < 50) {
-        stockTip = '库存紧张';
-      }
+      const stockInfo = checkStock(stock);
+      stockTip = stockInfo.stockTip;
     }
     
     // 更新商品信息和库存
@@ -239,6 +219,12 @@ Page({
         return;
       }
       
+      // 显示加载动画
+      wx.showLoading({
+        title: '添加中...',
+        mask: true
+      });
+      
       // 构建添加到购物车的数据
       const cartData = {
         productId: productInfo.id,
@@ -246,16 +232,30 @@ Page({
         specs: selectedSpecs
       };
       
-      // 采用正向传输方式，向后端添加到购物车
-      await api.cart.add(cartData);
+      // 使用公共购物车函数添加到购物车
+      const success = await addToCart(cartData);
       
-      wx.showToast({
-        title: '已添加到购物车',
-        icon: 'success',
-        duration: 1000
-      });
+      wx.hideLoading();
+      
+      // 显示成功动画
+      if (success) {
+        wx.showToast({
+          title: '已添加到购物车',
+          icon: 'success',
+          duration: 1500
+        });
+        
+        // 添加成功后，添加动画效果
+        this.triggerAddToCartAnimation();
+      }
     } catch (error) {
-      handleApiError(error);
+      wx.hideLoading();
+      console.error('添加到购物车失败:', error);
+      wx.showToast({
+        title: '添加失败，请重试',
+        icon: 'none',
+        duration: 2000
+      });
     }
   },
 
@@ -274,6 +274,12 @@ Page({
         return;
       }
       
+      // 显示加载动画
+      wx.showLoading({
+        title: '处理中...',
+        mask: true
+      });
+      
       // 构建订单数据
       const orderData = {
         items: [{
@@ -289,13 +295,43 @@ Page({
       // 采用正向传输方式，向后端创建订单
       const orderResult = await api.order.create(orderData);
       
+      wx.hideLoading();
+      
       // 跳转到订单确认页面
       wx.navigateTo({
-        url: `/pages/order/confirm?id=${orderResult.id}`
+        url: `/subpages/order/confirm/confirm?id=${orderResult.id}`,
+        success: () => {
+          wx.showToast({
+            title: '订单创建成功',
+            icon: 'success',
+            duration: 1000
+          });
+        },
+        fail: (error) => {
+          console.error('跳转失败:', error);
+          wx.showToast({
+            title: '跳转失败，请重试',
+            icon: 'none',
+            duration: 2000
+          });
+        }
       });
     } catch (error) {
-      handleApiError(error);
+      wx.hideLoading();
+      console.error('创建订单失败:', error);
+      wx.showToast({
+        title: '创建订单失败，请重试',
+        icon: 'none',
+        duration: 2000
+      });
     }
+  },
+
+  // 添加到购物车动画
+  triggerAddToCartAnimation: function () {
+    // 这里可以实现添加到购物车的动画效果
+    // 例如：商品图片飞进购物车的动画
+    console.log('添加到购物车动画');
   },
 
   // 返回上一页
@@ -369,7 +405,7 @@ Page({
     return {
       title: productInfo.title,
       path: '/pages/detail/detail?id=' + productInfo.id,
-      imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20sex%20toy%20product%20elegant%20design%20white%20background&image_size=square'
+      imageUrl: productInfo.image || '/images/default-product.png'
     };
   },
 
@@ -378,7 +414,9 @@ Page({
     const { productInfo } = this.data;
     return {
       title: productInfo.title,
-      imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20sex%20toy%20product%20elegant%20design%20white%20background&image_size=square'
+      imageUrl: productInfo.image || '/images/default-product.png'
     };
-  }
+  },
+
+
 })

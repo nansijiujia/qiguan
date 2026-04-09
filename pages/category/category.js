@@ -3,94 +3,80 @@ const { api, handleApiError } = require('../../utils/api');
 
 Page({
   data: {
-    // 分类数据
     categories: [],
-    // 子分类数据
-    subcategories: [
-      { id: 1, name: '全部商品' },
-      { id: 2, name: '新品上市' },
-      { id: 3, name: '热卖爆款' },
-      { id: 4, name: '限时特惠' },
-      { id: 5, name: '好评推荐' }
-    ],
-    // 商品数据
+    subcategories: [],
     products: [],
-    // 状态数据
-    activeCategoryId: 1,
-    activeSubcategoryId: 1,
+    activeCategoryId: null,
+    activeSubcategoryId: null,
     activeSort: 'default',
     searchKeyword: '',
     loading: false,
-    // 错误状态
     error: false,
     errorMessage: '',
-    // 分页数据
     page: 1,
     pageSize: 10,
     hasMore: true,
-    // 防抖定时器
     debounceTimer: null,
-    // 骨架屏状态
     showSkeleton: true
   },
 
   onLoad: function (options) {
     console.log('分类页加载');
-    this.loadCategoryData();
-    
-    // 如果从其他页面传入分类ID，则激活对应分类
     if (options.id) {
       this.setData({ activeCategoryId: parseInt(options.id) });
     }
+    this.loadCategoryData();
   },
 
   onShow: function () {
     console.log('分类页显示');
-    // 更新全局tabBar索引
     const app = getApp();
     app.globalData.currentTabIndex = 1;
+    
+    const selectedCategoryId = wx.getStorageSync('selectedCategoryId');
+    const categoryType = wx.getStorageSync('categoryType');
+    
+    if (selectedCategoryId) {
+      console.log('从其他页面传递的分类ID:', selectedCategoryId);
+      this.setData({ activeCategoryId: parseInt(selectedCategoryId) });
+      wx.removeStorageSync('selectedCategoryId');
+      if (this.data.categories.length > 0) {
+        this.loadCategoryProducts(parseInt(selectedCategoryId));
+      }
+    } else if (categoryType) {
+      console.log('从其他页面传递的分类类型:', categoryType);
+      wx.removeStorageSync('categoryType');
+      if (categoryType === 'all') {
+        this.setData({ activeSubcategoryId: 1 });
+      } else if (categoryType === 'hot') {
+        this.setData({ activeSubcategoryId: 3 });
+      }
+      if (this.data.activeCategoryId) {
+        this.loadCategoryProducts(this.data.activeCategoryId);
+      }
+    }
   },
 
-  // 加载分类数据
   loadCategoryData: function () {
     this.setData({ loading: true, error: false });
     
-    // 先尝试从缓存获取数据
     const cachedCategories = wx.getStorageSync('categories');
     const cachedTime = wx.getStorageSync('categories_timestamp');
     const now = Date.now();
     
-    // 如果缓存存在且未过期（10分钟）
     if (cachedCategories && cachedTime && (now - cachedTime < 10 * 60 * 1000)) {
       console.log('使用缓存的分类数据');
-      this.setData({
-        categories: cachedCategories,
-        loading: false,
-        showSkeleton: false
-      });
-      // 加载对应分类的商品
-      this.loadCategoryProducts(this.data.activeCategoryId);
+      this.processCategoryData(cachedCategories);
       return;
     }
     
-    // 调用API获取分类数据
     api.category.getList()
       .then(res => {
         console.log('分类数据获取成功:', res);
-        // 处理响应数据
         const categories = res.data || res || [];
-        this.setData({
-          categories: categories,
-          loading: false,
-          showSkeleton: false
-        });
-        
-        // 缓存分类数据
         wx.setStorageSync('categories', categories);
         wx.setStorageSync('categories_timestamp', now);
-        
-        // 加载对应分类的商品
-        this.loadCategoryProducts(this.data.activeCategoryId);
+        this.processCategoryData(categories);
       })
       .catch(error => {
         console.error('分类数据获取失败:', error);
@@ -100,32 +86,64 @@ Page({
           errorMessage: error.message || '分类数据加载失败',
           showSkeleton: false
         });
-        // 显示错误提示
         handleApiError(error);
         
-        // 如果有缓存，使用缓存数据
         if (cachedCategories) {
           console.log('使用缓存的分类数据');
-          this.setData({
-            categories: cachedCategories,
-            error: false,
-            showSkeleton: false
-          });
-          // 加载对应分类的商品
-          this.loadCategoryProducts(this.data.activeCategoryId);
+          this.processCategoryData(cachedCategories);
         }
       });
   },
 
-  // 加载分类商品
+  processCategoryData: function (categories) {
+    const defaultSubcategories = [
+      { id: null, name: '全部商品' },
+      { id: 'new', name: '新品上市' },
+      { id: 'hot', name: '热卖爆款' },
+      { id: 'sale', name: '限时特惠' },
+      { id: 'recommend', name: '好评推荐' }
+    ];
+    
+    let activeCategoryId = this.data.activeCategoryId;
+    let subcategories = defaultSubcategories;
+    
+    if (categories && categories.length > 0) {
+      if (!activeCategoryId) {
+        activeCategoryId = categories[0].id;
+      }
+      
+      const activeCategory = categories.find(c => c.id === activeCategoryId);
+      if (activeCategory && activeCategory.children && activeCategory.children.length > 0) {
+        subcategories = [
+          { id: null, name: '全部' },
+          ...activeCategory.children.map(child => ({
+            id: child.id,
+            name: child.name
+          }))
+        ];
+      }
+    }
+    
+    this.setData({
+      categories: categories,
+      subcategories: subcategories,
+      activeCategoryId: activeCategoryId,
+      loading: false,
+      showSkeleton: false
+    });
+    
+    if (activeCategoryId) {
+      this.loadCategoryProducts(activeCategoryId);
+    }
+  },
+
   loadCategoryProducts: function (categoryId, isLoadMore = false) {
-    if (this.data.loading || (!isLoadMore && !this.data.hasMore)) {
+    if (!categoryId || this.data.loading || (!isLoadMore && !this.data.hasMore)) {
       return;
     }
     
     this.setData({ loading: true, error: false });
     
-    // 构建请求参数
     const params = {
       subcategoryId: this.data.activeSubcategoryId,
       sort: this.data.activeSort,
@@ -133,11 +151,9 @@ Page({
       pageSize: this.data.pageSize
     };
     
-    // 调用API获取分类商品
     api.category.getProducts(categoryId, params)
       .then(res => {
         console.log('分类商品获取成功:', res);
-        // 处理响应数据
         const products = res.data || res || [];
         const newPage = isLoadMore ? this.data.page + 1 : 1;
         const newProducts = isLoadMore ? [...this.data.products, ...products] : products;
@@ -156,22 +172,41 @@ Page({
           error: true,
           errorMessage: error.message || '商品数据加载失败'
         });
-        // 显示错误提示
         handleApiError(error);
       });
   },
 
-  // 分类切换事件
   onCategoryChange: function (e) {
     const categoryId = e.currentTarget.dataset.id;
     console.log('切换分类:', categoryId);
-    // 重置分页参数
+    
+    const activeCategory = this.data.categories.find(c => c.id === categoryId);
+    let subcategories = [
+      { id: null, name: '全部商品' },
+      { id: 'new', name: '新品上市' },
+      { id: 'hot', name: '热卖爆款' },
+      { id: 'sale', name: '限时特惠' },
+      { id: 'recommend', name: '好评推荐' }
+    ];
+    
+    if (activeCategory && activeCategory.children && activeCategory.children.length > 0) {
+      subcategories = [
+        { id: null, name: '全部' },
+        ...activeCategory.children.map(child => ({
+          id: child.id,
+          name: child.name
+        }))
+      ];
+    }
+    
     this.setData({ 
       activeCategoryId: categoryId,
+      activeSubcategoryId: null,
+      subcategories: subcategories,
       page: 1,
-      hasMore: true
+      hasMore: true,
+      products: []
     });
-    // 加载对应分类的商品
     this.loadCategoryProducts(categoryId);
   },
 
@@ -214,15 +249,39 @@ Page({
   },
 
   // 添加到购物车
-  onAddToCart: function (e) {
+  onAddToCart: async function (e) {
     const productId = e.currentTarget.dataset.id;
     console.log('添加到购物车:', productId);
-    // 购物车逻辑
-    wx.showToast({
-      title: '已添加到购物车',
-      icon: 'success',
-      duration: 1000
-    });
+    
+    try {
+      // 显示加载动画
+      wx.showLoading({
+        title: '添加中...',
+        mask: true
+      });
+      
+      // 构建添加到购物车的数据
+      const cartData = {
+        productId: productId,
+        quantity: 1
+      };
+      
+      // 调用真实API添加到购物车
+      await api.cart.add(cartData);
+      
+      wx.hideLoading();
+      
+      // 显示成功提示
+      wx.showToast({
+        title: '已添加到购物车',
+        icon: 'success',
+        duration: 1000
+      });
+    } catch (error) {
+      wx.hideLoading();
+      console.error('添加到购物车失败:', error);
+      handleApiError(error);
+    }
   },
 
   // 搜索输入事件

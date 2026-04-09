@@ -1,5 +1,5 @@
 <!-- search.wxml -->
-<view class="search-page">
+<view class="search-page" bindtap="onTapOutside">
   <!-- 搜索栏 -->
   <view class="search-header">
     <view class="search-input-container">
@@ -16,8 +16,22 @@
     </view>
   </view>
 
+  <!-- 搜索建议 -->
+  <view class="search-suggestions" wx:if="{{showSuggestions && searchSuggestions.length > 0}}">
+    <view 
+      wx:for="{{searchSuggestions}}" 
+      wx:key="index"
+      class="suggestion-item"
+      data-text="{{item}}"
+      bindtap="onSuggestionClick"
+    >
+      <icon class="suggestion-icon" type="search" size="16" color="#9ca3af" />
+      <text>{{item}}</text>
+    </view>
+  </view>
+
   <!-- 搜索内容区域 -->
-  <view class="search-content">
+  <view class="search-content" wx:if="{{!showSuggestions}}">
     <!-- 搜索历史 -->
     <view class="search-history" wx:if="!hasSearched && searchHistory.length > 0">
       <view class="history-header">

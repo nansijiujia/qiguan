@@ -1,0 +1,63 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:else class="result-container">
+    <view class="result-icon {{status === 'success' ? 'success' : 'fail'}}">
+      <image wx:if="{{status === 'success'}}" src="/images/成功.png" mode="aspectFit"></image>
+      <image wx:else src="/images/失败.png" mode="aspectFit"></image>
+    </view>
+
+    <view class="result-title">
+      <text wx:if="{{status === 'success'}}">支付成功</text>
+      <text wx:else>支付失败</text>
+    </view>
+
+    <view wx:if="{{status === 'success'}}" class="result-amount">
+      <text class="amount-label">支付金额</text>
+      <text class="amount-value">¥{{amount.toFixed(2)}}</text>
+    </view>
+
+    <view wx:else class="result-message">
+      <text>支付遇到问题，请稍后重试</text>
+    </view>
+
+    <view wx:if="{{orderInfo}}" class="order-info">
+      <view class="order-info-item">
+        <text class="info-label">订单编号</text>
+        <text class="info-value">{{orderInfo.orderNo || orderId}}</text>
+      </view>
+      <view class="order-info-item">
+        <text class="info-label">下单时间</text>
+        <text class="info-value">{{orderInfo.createdAt}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{status === 'success'}}" class="countdown-tip">
+      <text>{{countdown}}秒后自动跳转到订单详情</text>
+    </view>
+
+    <view class="action-buttons">
+      <block wx:if="{{status === 'success'}}">
+        <view class="btn btn-primary" bindtap="goToOrderDetail">查看订单</view>
+        <view class="btn btn-secondary" bindtap="goToHome">返回首页</view>
+      </block>
+      <block wx:else>
+        <view class="btn btn-primary" bindtap="retryPaymentAction">重新支付</view>
+        <view class="btn btn-secondary" bindtap="queryPaymentStatusAction">查询支付状态</view>
+        <view class="btn btn-outline" bindtap="goToOrderDetail">查看订单</view>
+        <view class="btn btn-outline" bindtap="contactService">联系客服</view>
+      </block>
+    </view>
+
+    <view class="tips-section">
+      <view class="tips-title">温馨提示</view>
+      <view class="tips-content">
+        <text wx:if="{{status === 'success'}}">您的订单已支付成功，商家将尽快为您发货。</text>
+        <text wx:else>如支付遇到问题，请检查网络后重试或联系客服处理。</text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,15 +1,12 @@
 // mine.js
-import { checkLogin, getCurrentUser, logout } from '../../utils/auth';
+const { api, handleApiError } = require('../../utils/api');
+const { checkLogin, getCurrentUser, logout } = require('../../utils/auth');
 
 Page({
   data: {
     isLoggedIn: false,
-    userInfo: {},
-    orderStats: {
-      pending: 2,
-      shipping: 1,
-      delivered: 3
-    },
+    userInfo: null,
+    orderStats: null,
     appInfo: {
       version: '1.0.0'
     },
@@ -27,12 +24,40 @@ Page({
   },
 
   checkLoginStatus: function () {
-    const isLoggedIn = checkLogin();
-    const userInfo = getCurrentUser();
+    const token = wx.getStorageSync('token');
+    const isLoggedIn = !!token;
+    
     this.setData({
-      isLoggedIn: isLoggedIn,
-      userInfo: userInfo || {}
+      isLoggedIn: isLoggedIn
     });
+    
+    if (isLoggedIn) {
+      this.loadUserData();
+    } else {
+      this.setData({
+        userInfo: null,
+        orderStats: null
+      });
+    }
+  },
+
+  loadUserData: async function () {
+    this.setData({ loading: true });
+    try {
+      const [userInfo, orderStats] = await Promise.all([
+        api.user.getInfo().catch(() => null),
+        api.user.getOrderStats().catch(() => null)
+      ]);
+      
+      this.setData({
+        userInfo: userInfo,
+        orderStats: orderStats || { pending: 0, shipping: 0, delivered: 0 },
+        loading: false
+      });
+    } catch (error) {
+      console.error('加载用户数据失败:', error);
+      this.setData({ loading: false });
+    }
   },
 
   // 跳转到设置页面
@@ -51,7 +76,15 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: '/pages/order/list/list?tab=all'
+      url: '/subpages/order/list/list?tab=all',
+      fail: (error) => {
+        console.error('跳转订单列表失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
@@ -70,7 +103,15 @@ Page({
     };
     const tab = statusMap[status] || 'all';
     wx.navigateTo({
-      url: `/pages/order/list/list?tab=${tab}`
+      url: `/subpages/order/list/list?tab=${tab}`,
+      fail: (error) => {
+        console.error('跳转订单列表失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
@@ -90,10 +131,16 @@ Page({
       this.goToLogin();
       return;
     }
-    wx.showToast({
-      title: '跳转到我的收藏页面',
-      icon: 'none',
-      duration: 1000
+    wx.navigateTo({
+      url: '/subpages/user/favorite/favorite',
+      fail: (error) => {
+        console.error('跳转收藏页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
@@ -103,17 +150,31 @@ Page({
       this.goToLogin();
       return;
     }
-    wx.showToast({
-      title: '跳转到浏览足迹页面',
-      icon: 'none',
-      duration: 1000
+    wx.navigateTo({
+      url: '/subpages/user/footprint/footprint',
+      fail: (error) => {
+        console.error('跳转足迹页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
   // 跳转到客户服务页面
   onCustomerService: function () {
     wx.navigateTo({
-      url: '/pages/customer-service/index'
+      url: '/subpages/service/customer-service/index',
+      fail: (error) => {
+        console.error('跳转客服页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
@@ -124,7 +185,15 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: '/pages/address/list/list'
+      url: '/subpages/user/address/list/list',
+      fail: (error) => {
+        console.error('跳转地址管理失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
@@ -135,7 +204,15 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: '/pages/coupon/coupon'
+      url: '/subpages/user/coupon/coupon',
+      fail: (error) => {
+        console.error('跳转优惠券页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
@@ -151,7 +228,15 @@ Page({
   // 跳转到登录页面
   goToLogin: function () {
     wx.navigateTo({
-      url: '/pages/login/login'
+      url: '/subpages/auth/login/login',
+      fail: (error) => {
+        console.error('跳转登录页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
@@ -162,21 +247,45 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: '/pages/profile/profile'
+      url: '/subpages/auth/profile/profile',
+      fail: (error) => {
+        console.error('跳转个人信息页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
   // 跳转到个人信息编辑页面
   onProfile: function () {
     wx.navigateTo({
-      url: '/pages/profile/profile'
+      url: '/subpages/auth/profile/profile',
+      fail: (error) => {
+        console.error('跳转个人信息编辑页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
   // 跳转到修改密码页面
   onChangePassword: function () {
     wx.navigateTo({
-      url: '/pages/change-password/change-password'
+      url: '/subpages/auth/change-password/change-password',
+      fail: (error) => {
+        console.error('跳转修改密码页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 

@@ -1,0 +1,32 @@
+<!-- favorite.wxml -->
+<view class="container">
+  <view class="header">
+    <view class="nav-left" bindtap="onBack">
+      <icon type="left" size="28" color="#1f2937" />
+    </view>
+    <view class="nav-title">我的收藏</view>
+    <view class="nav-right"></view>
+  </view>
+  
+  <view class="favorite-list">
+    <view wx:for="{{favorites}}" wx:key="id" class="favorite-item">
+      <view class="favorite-image">
+        <image src="{{item.image}}" mode="aspectFill" />
+      </view>
+      <view class="favorite-info">
+        <text class="favorite-name">{{item.name}}</text>
+        <text class="favorite-price">¥{{item.price.toFixed(2)}}</text>
+        <view class="favorite-actions">
+          <button class="action-btn buy-btn" bindtap="buyNow" data-id="{{item.id}}">立即购买</button>
+          <button class="action-btn remove-btn" bindtap="removeFavorite" data-id="{{item.id}}">取消收藏</button>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <view class="empty-state" wx:if="{{favorites.length === 0}}">
+    <image src="/images/空购物车.png" mode="aspectFill" />
+    <text class="empty-text">暂无收藏商品</text>
+    <button class="empty-btn" bindtap="goShopping">去购物</button>
+  </view>
+</view>

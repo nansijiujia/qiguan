@@ -3,26 +3,55 @@
     "pages/index/index",
     "pages/search/search",
     "pages/category/category",
+    "pages/product-list/product-list",
+    "pages/detail/detail",
     "pages/cart/cart",
-    "pages/mine/mine",
-    "pages/login/login",
-    "pages/register/register",
-    "pages/profile/profile",
-    "pages/change-password/change-password",
-    "pages/coupon/coupon",
-    "pages/activity/activity",
-    "pages/activity-detail/activity-detail",
-    "pages/order/confirm/confirm",
-    "pages/order/detail/detail",
-    "pages/order/list/list",
-    "pages/address/list/list",
-    "pages/address/add/add",
-    "pages/address/edit/edit",
-    "pages/customer-service/index",
-    "pages/customer-service/chat",
-    "pages/customer-service/faq",
-    "pages/customer-service/after-sales",
-    "pages/logistics/logistics"
+    "pages/mine/mine"
+  ],
+  "subPackages": [
+    {
+      "root": "subpages/auth",
+      "pages": [
+        "login/login",
+        "register/register",
+        "profile/profile",
+        "change-password/change-password"
+      ]
+    },
+    {
+      "root": "subpages/user",
+      "pages": [
+        "coupon/coupon",
+        "favorite/favorite",
+        "footprint/footprint",
+        "address/list/list",
+        "address/add/add",
+        "address/edit/edit"
+      ]
+    },
+
+    {
+      "root": "subpages/order",
+      "pages": [
+        "confirm/confirm",
+        "detail/detail",
+        "list/list",
+        "logistics/logistics",
+        "result/result"
+      ]
+    },
+    {
+      "root": "subpages/service",
+      "pages": [
+        "customer-service/index",
+        "customer-service/chat",
+        "customer-service/faq",
+        "customer-service/after-sales",
+        "customer-service/privacy",
+        "customer-service/agreement"
+      ]
+    },
+
   ],
   "window": {
     "backgroundTextStyle": "light",

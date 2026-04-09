@@ -1,5 +1,6 @@
 // cart.js
 const { api, handleApiError } = require('../../utils/api');
+const { getCartList, updateCartItem, deleteCartItem, toggleAllCartItems, calculateTotalPrice, calculateSelectedCount, isAllSelected } = require('../../utils/cart');
 
 Page({
   data: {
@@ -19,8 +20,8 @@ Page({
   },
 
   onShow: function () {
-    // 页面显示时重新获取购物车数据
-    this.loadCartData();
+    // 页面显示时同步购物车数据
+    this.syncCartData();
   },
 
   // 显示加载状态
@@ -41,9 +42,43 @@ Page({
   // 保存购物车数据到本地存储
   saveCartData: function () {
     try {
-      wx.setStorageSync('cartItems', this.data.cartItems);
+      const cartData = {
+        items: this.data.cartItems,
+        lastSync: Date.now()
+      };
+      wx.setStorageSync('cartItems', cartData);
     } catch (error) {
       console.error('保存购物车数据失败:', error);
+    }
+  },
+
+  // 从本地存储加载购物车数据
+  loadCartDataFromLocal: function () {
+    try {
+      const storedData = wx.getStorageSync('cartItems');
+      if (storedData && storedData.items && storedData.items.length > 0) {
+        console.log('使用本地存储的购物车数据:', storedData.items);
+        this.setData({ cartItems: storedData.items });
+        this.updateCartStatus();
+        return true;
+      }
+    } catch (error) {
+      console.error('从本地存储加载购物车数据失败:', error);
+    }
+    return false;
+  },
+
+  // 同步购物车数据到服务端
+  syncCartData: async function () {
+    try {
+      const storedData = wx.getStorageSync('cartItems');
+      if (storedData && storedData.items && storedData.items.length > 0) {
+        // 这里可以实现更复杂的同步逻辑，比如对比本地和服务端的数据
+        // 目前简单实现为重新加载服务端数据
+        await this.loadCartData();
+      }
+    } catch (error) {
+      console.error('同步购物车数据失败:', error);
     }
   },
 
@@ -51,8 +86,8 @@ Page({
   loadCartData: async function () {
     this.showLoading('加载购物车...');
     try {
-      // 采用正向传输方式，从后端获取购物车数据
-      const cartData = await api.cart.getList();
+      // 使用cart工具函数获取购物车数据
+      const cartData = await getCartList();
       
       console.log('购物车原始数据:', cartData);
       
@@ -90,12 +125,7 @@ Page({
     } catch (error) {
       handleApiError(error);
       // 错误时使用本地存储作为备份
-      const storedCartItems = wx.getStorageSync('cartItems');
-      if (storedCartItems && storedCartItems.length > 0) {
-        console.log('使用本地存储的购物车数据:', storedCartItems);
-        this.setData({ cartItems: storedCartItems });
-        this.updateCartStatus();
-      }
+      this.loadCartDataFromLocal();
     } finally {
       this.hideLoading();
     }
@@ -105,19 +135,10 @@ Page({
   updateCartStatus: function () {
     const cartItems = this.data.cartItems;
     
-    // 计算全选状态
-    const isAllSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
-    
-    // 计算合计金额和选中数量
-    let totalPrice = 0;
-    let selectedCount = 0;
-    
-    cartItems.forEach(item => {
-      if (item.selected) {
-        totalPrice += item.price * item.quantity;
-        selectedCount += item.quantity;
-      }
-    });
+    // 使用cart工具函数计算状态
+    const isAllSelected = isAllSelected(cartItems);
+    const totalPrice = calculateTotalPrice(cartItems);
+    const selectedCount = calculateSelectedCount(cartItems);
     
     this.setData({
       isAllSelected,
@@ -159,15 +180,17 @@ Page({
       this.updateCartStatus();
       
       // 采用正向传输方式，向后端更新选择状态
-      const response = await api.cart.update(id, { selected: !item.selected });
-      console.log('更新选择状态响应:', response);
+      const success = await updateCartItem(id, { selected: !item.selected });
+      console.log('更新选择状态结果:', success);
       
       // 操作成功反馈
-      wx.showToast({
-        title: '选择成功',
-        icon: 'success',
-        duration: 500
-      });
+      if (success) {
+        wx.showToast({
+          title: '选择成功',
+          icon: 'success',
+          duration: 500
+        });
+      }
     } catch (error) {
       handleApiError(error);
       // 错误时恢复原状态
@@ -191,20 +214,17 @@ Page({
       this.setData({ cartItems: updatedItems });
       this.updateCartStatus();
       
-      // 采用正向传输方式，批量向后端更新选择状态
-      // 这里可以优化为一个批量更新接口
-      await Promise.all(
-        cartItems.map(item => 
-          api.cart.update(item.id, { selected: newSelectedStatus })
-        )
-      );
+      // 采用正向传输方式，使用toggleAllCartItems工具函数
+      const success = await toggleAllCartItems(newSelectedStatus);
       
       // 操作成功反馈
-      wx.showToast({
-        title: newSelectedStatus ? '全选成功' : '取消全选成功',
-        icon: 'success',
-        duration: 500
-      });
+      if (success) {
+        wx.showToast({
+          title: newSelectedStatus ? '全选成功' : '取消全选成功',
+          icon: 'success',
+          duration: 500
+        });
+      }
     } catch (error) {
       handleApiError(error);
       // 错误时恢复原状态
@@ -407,12 +427,10 @@ Page({
           try {
             this.showLoading('删除中...');
             
-            // 采用正向传输方式，批量向后端删除商品
-            // 这里可以优化为一个批量删除接口
-            const responses = await Promise.all(
-              selectedItems.map(item => api.cart.delete(item.id))
-            );
-            console.log('批量删除响应:', responses);
+            // 采用正向传输方式，使用批量删除接口
+            await api.cart.batchDelete({
+              ids: selectedItems.map(item => item.id)
+            });
             
             // 更新本地状态
             const updatedItems = cartItems.filter(item => !item.selected);
@@ -579,7 +597,15 @@ Page({
       
       // 跳转到订单确认页面
       wx.navigateTo({
-        url: '/pages/order/confirm/confirm'
+        url: '/subpages/order/confirm/confirm',
+        fail: (error) => {
+          console.error('跳转订单确认页失败:', error);
+          wx.showToast({
+            title: '跳转失败，请重试',
+            icon: 'none',
+            duration: 2000
+          });
+        }
       });
     } catch (error) {
       this.hideLoading();

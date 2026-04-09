@@ -1,0 +1,38 @@
+.empty-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80rpx 0;
+  min-height: 400rpx;
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.empty-icon {
+  width: 160rpx;
+  height: 160rpx;
+  opacity: 0.6;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+  text-align: center;
+}
+
+.empty-button {
+  margin-top: 16rpx;
+  padding: 0 48rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  font-size: 24rpx;
+  color: #ff4757;
+  border: 1rpx solid #ff4757;
+  border-radius: 32rpx;
+  background: #fff;
+}

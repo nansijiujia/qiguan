@@ -1,5 +1,10 @@
 // index.js
 const { api, handleApiError } = require('../../utils/api');
+const { saveToCache, loadFromCache, CACHE_CONFIG } = require('../../utils/cache');
+const { preloadImages, extractImageUrls } = require('../../utils/image');
+const { addToCart } = require('../../utils/cart');
+const { createScaleAnimation } = require('../../utils/animation');
+const { startCountdown, getFutureTimestamp } = require('../../utils/countdown');
 
 Page({
   data: {
@@ -23,66 +28,85 @@ Page({
 
   onLoad: function () {
     console.log('首页加载');
-    // 尝试从本地缓存加载数据
-    this.loadFromCache();
-    // 加载最新数据
-    this.loadHomeData();
+    // 记录首屏加载开始时间
+    this.startTime = Date.now();
+    
     // 初始化动画
     this.initAnimation();
     // 启动倒计时
     this.startCountdown();
+    
+    // 尝试从本地缓存加载数据
+    this.loadFromCache();
+    
+    // 立即加载最新数据，不需要延迟
+    this.loadHomeData();
   },
 
   // 初始化动画
   initAnimation: function () {
     this.animation = wx.createAnimation({
-      duration: 500,
+      duration: 300,
       timingFunction: 'ease',
     });
   },
 
-
-
   // 启动倒计时
   startCountdown: function () {
-    setInterval(() => {
-      const countdown = { ...this.data.countdown };
-      if (countdown.seconds > 0) {
-        countdown.seconds--;
-      } else if (countdown.minutes > 0) {
-        countdown.minutes--;
-        countdown.seconds = 59;
-      } else if (countdown.hours > 0) {
-        countdown.hours--;
-        countdown.minutes = 59;
-        countdown.seconds = 59;
-      } else if (countdown.days > 0) {
-        countdown.days--;
-        countdown.hours = 23;
-        countdown.minutes = 59;
-        countdown.seconds = 59;
-      } else {
+    // 设置24小时倒计时
+    const targetTime = getFutureTimestamp(24);
+    
+    // 使用公共倒计时函数
+    this.countdownController = startCountdown(
+      targetTime,
+      (timeDiff) => {
+        this.setData({
+          countdown: {
+            days: timeDiff.days,
+            hours: timeDiff.hours,
+            minutes: timeDiff.minutes,
+            seconds: timeDiff.seconds
+          }
+        });
+      },
+      () => {
         // 倒计时结束，重置
-        countdown.hours = 23;
-        countdown.minutes = 59;
-        countdown.seconds = 59;
+        this.startCountdown();
       }
-      this.setData({ countdown });
-    }, 1000);
+    );
+  },
+
+  // 页面卸载时清除定时器
+  onUnload: function () {
+    if (this.countdownController) {
+      this.countdownController.stop();
+    }
   },
 
   // 从本地缓存加载数据
   loadFromCache: function () {
     try {
-      const cachedData = wx.getStorageSync('homePageData');
-      if (cachedData && Date.now() < cachedData.expiry) {
-        this.setData({
+      const cachedData = loadFromCache('homePageData');
+      if (cachedData) {
+        // 合并setData操作，减少渲染次数
+        const data = {
           banners: cachedData.banners || [],
           recommendedGoods: cachedData.recommendations || [],
           promotionGoods: cachedData.promotions || [],
           hotGoods: cachedData.hotProducts || [],
-          categories: cachedData.categories || []
-        });
+          categories: cachedData.categories || [],
+          loading: false // 缓存加载成功后直接设置为非加载状态
+        };
+        this.setData(data);
+        
+        // 计算首屏加载时间（从缓存加载）
+        const loadTime = Date.now() - this.startTime;
+        console.log('首屏加载时间（缓存）:', loadTime, 'ms');
+        
+        // 如果首屏加载时间超过2秒，记录警告
+        if (loadTime > 2000) {
+          console.warn('首屏加载时间（缓存）超过2秒:', loadTime, 'ms');
+        }
       }
     } catch (error) {
       console.error('加载缓存失败:', error);
@@ -109,7 +133,19 @@ Page({
       });
       
       // 缓存数据到本地
-      this.saveToCache({ ...homeData, categories });
+      saveToCache('homePageData', { ...homeData, categories }, CACHE_CONFIG.homeDataExpiry);
+      
+      // 预加载图片
+      this.preloadImages(homeData);
+      
+      // 计算首屏加载时间
+      const loadTime = Date.now() - this.startTime;
+      console.log('首屏加载时间:', loadTime, 'ms');
+      
+      // 如果首屏加载时间超过2秒，记录警告
+      if (loadTime > 2000) {
+        console.warn('首屏加载时间超过2秒:', loadTime, 'ms');
+      }
     } catch (error) {
       handleApiError(error);
     } finally {
@@ -117,17 +153,21 @@ Page({
     }
   },
   
-  // 保存数据到本地缓存
-  saveToCache: function (data) {
-    try {
-      wx.setStorageSync('homePageData', {
-        ...data,
-        expiry: Date.now() + 5 * 60 * 1000 // 5分钟缓存
-      });
-    } catch (error) {
-      console.error('保存缓存失败:', error);
-    }
+  // 预加载图片
+  preloadImages: function (homeData) {
+    // 从数据中提取图片URL
+    const imageUrls = extractImageUrls(homeData, [
+      'banners',
+      'recommendations',
+      'promotions',
+      'hotProducts'
+    ]);
+    
+    // 批量预加载图片
+    preloadImages(imageUrls, 10);
   },
+  
+
 
   // 图片加载完成事件
   onImageLoad: function (e) {
@@ -196,9 +236,18 @@ Page({
       this.animation.scale(1).step();
       this.setData({ animationData: this.animation.export() });
     }, 100);
-    // 跳转到分类商品页面
-    wx.navigateTo({
-      url: `/pages/category/category?id=${categoryId}`
+    // 使用本地存储传递分类ID，然后跳转到分类页面
+    wx.setStorageSync('selectedCategoryId', categoryId);
+    wx.switchTab({
+      url: '/pages/category/category',
+      fail: (error) => {
+        console.error('跳转分类页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
@@ -224,23 +273,49 @@ Page({
   },
 
   // 添加到购物车
-  onAddToCart: function (e) {
+  onAddToCart: async function (e) {
     const goodsId = e.currentTarget.dataset.id;
     console.log('添加到购物车:', goodsId);
-    // 添加动画效果
-    const button = e.currentTarget;
-    this.animation.scale(0.8).step();
-    this.setData({ animationData: this.animation.export() });
-    setTimeout(() => {
-      this.animation.scale(1).step();
-      this.setData({ animationData: this.animation.export() });
-    }, 150);
-    // 显示添加成功提示
-    wx.showToast({
-      title: '已添加到购物车',
-      icon: 'success',
-      duration: 1000
-    });
+    
+    try {
+      // 添加动画效果
+      const animation = createScaleAnimation(0.8, 100);
+      this.setData({ animationData: animation.export() });
+      setTimeout(() => {
+        const resetAnimation = createScaleAnimation(1, 100);
+        this.setData({ animationData: resetAnimation.export() });
+      }, 100);
+      
+      // 显示加载动画
+      wx.showLoading({
+        title: '添加中...',
+        mask: true
+      });
+      
+      // 构建添加到购物车的数据
+      const cartData = {
+        productId: goodsId,
+        quantity: 1
+      };
+      
+      // 调用公共购物车函数添加到购物车
+      const success = await addToCart(cartData);
+      
+      wx.hideLoading();
+      
+      // 显示添加成功提示
+      if (success) {
+        wx.showToast({
+          title: '已添加到购物车',
+          icon: 'success',
+          duration: 1000
+        });
+      }
+    } catch (error) {
+      wx.hideLoading();
+      console.error('添加到购物车失败:', error);
+      handleApiError(error);
+    }
   },
 
   // 下拉刷新事件
@@ -295,39 +370,54 @@ Page({
     });
   },
 
-  // 跳转到活动列表
-  goToActivityList: function () {
-    console.log('跳转到活动中心');
-    wx.navigateTo({
-      url: '/pages/activity/activity'
-    });
-  },
+
 
   // 查看全部分类
   onViewAllCategories: function () {
-    wx.navigateTo({
-      url: '/pages/category/category'
+    wx.switchTab({
+      url: '/pages/category/category',
+      fail: (error) => {
+        console.error('跳转分类页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
   // 查看全部商品
   onViewAllGoods: function () {
-    wx.navigateTo({
-      url: '/pages/category/category?type=all'
+    wx.setStorageSync('categoryType', 'all');
+    wx.switchTab({
+      url: '/pages/category/category',
+      fail: (error) => {
+        console.error('跳转分类页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
-  // 查看全部促销
-  onViewAllPromotions: function () {
-    wx.navigateTo({
-      url: '/pages/activity/activity?type=promotion'
-    });
-  },
+
 
   // 查看全部热门商品
   onViewAllHotGoods: function () {
-    wx.navigateTo({
-      url: '/pages/category/category?type=hot'
+    wx.setStorageSync('categoryType', 'hot');
+    wx.switchTab({
+      url: '/pages/category/category',
+      fail: (error) => {
+        console.error('跳转分类页失败:', error);
+        wx.showToast({
+          title: '跳转失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   }
 })

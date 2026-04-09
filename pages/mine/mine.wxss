@@ -75,6 +75,47 @@
   overflow: hidden;
 }
 
+/* 积分区域 */
+.points-section {
+  display: flex;
+  background-color: var(--bg-primary);
+  margin: 0 16px 16px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  animation: fadeIn 0.5s ease-out 0.15s both;
+}
+
+.points-item {
+  flex: 1;
+  padding: 16px;
+  text-align: center;
+  border-right: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+.points-item:last-child {
+  border-right: none;
+}
+
+.points-item:active {
+  background-color: var(--bg-secondary);
+}
+
+.points-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.points-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
 .user-section::before {
   content: '';
   position: absolute;

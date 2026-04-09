@@ -5,19 +5,13 @@ Page({
   data: {
     searchKeyword: '',
     searchHistory: [],
-    hotKeywords: [
-      '按摩器',
-      '性感内衣',
-      '润滑液',
-      '避孕套',
-      '延时喷剂',
-      '情趣用品',
-      '振动器',
-      '按摩油'
-    ],
+    hotKeywords: [],
     searchResults: [],
+    searchSuggestions: [],
     hasSearched: false,
-    loading: false
+    showSuggestions: false,
+    loading: false,
+    debounceTimer: null
   },
 
   onLoad: function (options) {
@@ -29,12 +23,25 @@ Page({
     }
     // 加载搜索历史
     this.loadSearchHistory();
+    // 加载热门搜索
+    this.loadHotKeywords();
   },
 
   // 加载搜索历史
   loadSearchHistory: function () {
     const history = wx.getStorageSync('searchHistory') || [];
     this.setData({ searchHistory: history });
+  },
+
+  // 加载热门搜索关键词
+  loadHotKeywords: async function () {
+    try {
+      const hotKeywords = await api.search.getHotKeywords();
+      this.setData({ hotKeywords: hotKeywords || [] });
+    } catch (error) {
+      console.error('加载热门搜索失败:', error);
+      this.setData({ hotKeywords: [] });
+    }
   },
 
   // 保存搜索历史
@@ -55,13 +62,50 @@ Page({
     this.setData({ searchHistory: history });
   },
 
-  // 搜索输入事件
+  // 搜索输入事件（带防抖）
   onSearchInput: function (e) {
-    this.setData({ searchKeyword: e.detail.value });
+    const keyword = e.detail.value;
+    this.setData({ searchKeyword: keyword });
+    
+    // 清除之前的定时器
+    if (this.data.debounceTimer) {
+      clearTimeout(this.data.debounceTimer);
+    }
+    
+    // 设置新的定时器
+    const timer = setTimeout(() => {
+      if (keyword.trim()) {
+        this.getSearchSuggestions(keyword);
+      } else {
+        this.setData({ showSuggestions: false, searchSuggestions: [] });
+      }
+    }, 300);
+    
+    this.setData({ debounceTimer: timer });
+  },
+
+  // 获取搜索建议
+  getSearchSuggestions: async function (keyword) {
+    try {
+      // 从后端获取搜索建议
+      const suggestions = await api.search.getSuggestions(keyword);
+      
+      this.setData({
+        searchSuggestions: suggestions || [],
+        showSuggestions: true
+      });
+    } catch (error) {
+      console.error('获取搜索建议失败:', error);
+      // 如果获取失败，隐藏搜索建议
+      this.setData({
+        searchSuggestions: [],
+        showSuggestions: false
+      });
+    }
   },
 
   // 搜索提交事件
-  onSearch: function () {
+  onSearch: async function () {
     const keyword = this.data.searchKeyword.trim();
     if (!keyword) {
       wx.showToast({
@@ -72,53 +116,29 @@ Page({
       return;
     }
 
-    this.setData({ loading: true });
+    this.setData({ loading: true, showSuggestions: false });
     
     // 保存搜索历史
     this.saveSearchHistory(keyword);
     
-    // 调用搜索API
-    api.product.search(keyword)
-      .then(res => {
-        console.log('搜索结果:', res);
-        // 模拟搜索结果数据
-        const mockResults = [
-          {
-            id: 1,
-            name: '高级按摩器 多频振动 静音设计',
-            price: 299,
-            originalPrice: 399,
-            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20sex%20toy%20product%20elegant%20design%20white%20background%20minimalist&image_size=square',
-            isNew: true
-          },
-          {
-            id: 2,
-            name: '多频振动器 静音设计',
-            price: 259,
-            originalPrice: 359,
-            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sex%20toy%20vibrator%20product%20elegant%20design%20white%20background&image_size=square',
-            isHot: true
-          },
-          {
-            id: 3,
-            name: '仿真按摩器 硅胶材质',
-            price: 399,
-            originalPrice: 499,
-            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sex%20toy%20product%20elegant%20design%20white%20background%20premium&image_size=square',
-            isBestseller: true
-          }
-        ];
-        
-        this.setData({
-          searchResults: mockResults,
-          hasSearched: true,
-          loading: false
-        });
-      })
-      .catch(error => {
-        handleApiError(error);
-        this.setData({ loading: false });
+    try {
+      // 调用搜索API
+      const results = await api.product.search(keyword);
+      console.log('搜索结果:', results);
+      
+      this.setData({
+        searchResults: results || [],
+        hasSearched: true,
+        loading: false
       });
+    } catch (error) {
+      handleApiError(error);
+      this.setData({ 
+        loading: false,
+        searchResults: [],
+        hasSearched: true
+      });
+    }
   },
 
   // 取消搜索
@@ -137,6 +157,16 @@ Page({
   onHotItemClick: function (e) {
     const keyword = e.currentTarget.dataset.text || e.currentTarget.textContent;
     this.setData({ searchKeyword: keyword });
+    this.onSearch();
+  },
+
+  // 点击搜索建议
+  onSuggestionClick: function (e) {
+    const keyword = e.currentTarget.dataset.text;
+    this.setData({ 
+      searchKeyword: keyword,
+      showSuggestions: false 
+    });
     this.onSearch();
   },
 
@@ -173,14 +203,43 @@ Page({
   },
 
   // 添加到购物车
-  onAddToCart: function (e) {
+  onAddToCart: async function (e) {
     const goodsId = e.currentTarget.dataset.id;
     console.log('添加到购物车:', goodsId);
-    // 购物车逻辑
-    wx.showToast({
-      title: '已加入购物车',
-      icon: 'success',
-      duration: 1500
-    });
+    
+    try {
+      // 显示加载动画
+      wx.showLoading({
+        title: '添加中...',
+        mask: true
+      });
+      
+      // 构建添加到购物车的数据
+      const cartData = {
+        productId: goodsId,
+        quantity: 1
+      };
+      
+      // 调用真实API添加到购物车
+      await api.cart.add(cartData);
+      
+      wx.hideLoading();
+      
+      // 显示成功提示
+      wx.showToast({
+        title: '已加入购物车',
+        icon: 'success',
+        duration: 1500
+      });
+    } catch (error) {
+      wx.hideLoading();
+      console.error('添加到购物车失败:', error);
+      handleApiError(error);
+    }
+  },
+
+  // 点击空白区域关闭搜索建议
+  onTapOutside: function () {
+    this.setData({ showSuggestions: false });
   }
 })

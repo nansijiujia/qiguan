@@ -25,6 +25,18 @@
       <icon type="right" size="20" color="#9ca3af" />
     </view>
   </view>
+  
+  <!-- 积分区域 -->
+  <view wx:if="{{isLoggedIn}}" class="points-section">
+    <view class="points-item">
+      <view class="points-label">我的积分</view>
+      <view class="points-value">{{userInfo.points || 0}}</view>
+    </view>
+    <view class="points-item">
+      <view class="points-label">会员等级</view>
+      <view class="points-value">{{userInfo.level || '普通会员'}}</view>
+    </view>
+  </view>
 
   <!-- 订单状态导航 -->
   <view class="order-section">

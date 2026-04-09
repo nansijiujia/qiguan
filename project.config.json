@@ -61,8 +61,8 @@
     "disableSWC": true
   },
   "compileType": "miniprogram",
-  "libVersion": "2.19.4",
-  "appid": "wxa84ea4e15e73021f",
+  "libVersion": "3.14.2",
+  "appid": "wx2ef7ce23a329a1ec",
   "projectname": "绮梦之约",
   "isGameTourist": false,
   "condition": {

@@ -328,6 +328,41 @@
   }
 }
 
+/* 搜索建议 */
+.search-suggestions {
+  background-color: #ffffff;
+  border-bottom: 1rpx solid #e5e7eb;
+  max-height: 500rpx;
+  overflow-y: auto;
+  position: relative;
+  z-index: 5;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 30rpx;
+  border-bottom: 1rpx solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background-color: #f9fafb;
+}
+
+.suggestion-icon {
+  margin-right: 15rpx;
+}
+
+.suggestion-item text {
+  font-size: 28rpx;
+  color: #1f2937;
+}
+
 /* 响应式调整 */
 @media (max-width: 375px) {
   .goods-grid {
@@ -344,5 +379,13 @@
   
   .goods-price {
     font-size: 28rpx;
+  }
+  
+  .suggestion-item {
+    padding: 15rpx 20rpx;
+  }
+  
+  .suggestion-item text {
+    font-size: 26rpx;
   }
 }

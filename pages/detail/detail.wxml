@@ -226,6 +226,193 @@
     </view>
   </view>
 
+  <!-- 商品评价模块 -->
+  <view class="review-section" wx:if="{{!loading}}">
+    <view class="section-title">
+      <text>商品评价</text>
+      <text class="more-btn" bindtap="onViewAllReviews">查看全部</text>
+    </view>
+    
+    <view class="review-summary">
+      <view class="rating-average">
+        <view class="rating-value">{{productInfo.averageRating || 0}}</view>
+        <view class="rating-stars">
+          <icon type="star" size="16" color="#f59e0b" wx:for="{{5}}" wx:key="index" wx:if="{{index < (productInfo.averageRating || 0)}}" />
+          <icon type="star-o" size="16" color="#d1d5db" wx:for="{{5}}" wx:key="index" wx:else />
+        </view>
+        <view class="rating-count">({{productInfo.reviewCount || 0}}条评价)</view>
+      </view>
+      
+      <view class="rating-distribution">
+        <view class="rating-item" wx:for="{{[5,4,3,2,1]}}" wx:key="index">
+          <view class="rating-level">{{item}}星</view>
+          <view class="rating-bar">
+            <view class="rating-fill" style="width: {{(productInfo.ratingDistribution && productInfo.ratingDistribution[item]) || 0}}%"></view>
+          </view>
+          <view class="rating-percent">{{(productInfo.ratingDistribution && productInfo.ratingDistribution[item]) || 0}}%</view>
+        </view>
+      </view>
+    </view>
+    
+    <view class="review-list">
+      <view class="review-item" wx:for="{{reviews}}" wx:key="id">
+        <view class="review-header">
+          <view class="review-user">
+            <image class="user-avatar" src="{{item.user.avatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=user%20avatar%20placeholder&image_size=square'}}" />
+            <view class="user-info">
+              <view class="user-name">{{item.user.name || '匿名用户'}}</view>
+              <view class="review-time">{{item.createdAt}}</view>
+            </view>
+          </view>
+          <view class="review-rating">
+            <icon type="star" size="14" color="#f59e0b" wx:for="{{5}}" wx:key="index" wx:if="{{index < item.rating}}" />
+            <icon type="star-o" size="14" color="#d1d5db" wx:for="{{5}}" wx:key="index" wx:else />
+          </view>
+        </view>
+        <view class="review-content">{{item.content}}</view>
+        <view class="review-images" wx:if="{{item.images && item.images.length > 0}}">
+          <image class="review-image" src="{{image}}" wx:for="{{item.images}}" wx:key="index" mode="aspectFill" />
+        </view>
+      </view>
+      <view class="no-reviews" wx:if="{{reviews.length == 0}}">
+        暂无评价
+      </view>
+    </view>
+  </view>
+  <!-- 商品评价模块骨架屏 -->
+  <view class="review-section skeleton-loading" wx:else>
+    <view class="section-title">
+      <text>商品评价</text>
+      <text class="more-btn">查看全部</text>
+    </view>
+    
+    <view class="review-summary">
+      <view class="rating-average">
+        <view class="skeleton rating-value-skeleton"></view>
+        <view class="rating-stars">
+          <view class="skeleton star-skeleton" wx:for="{{5}}" wx:key="index"></view>
+        </view>
+        <view class="skeleton rating-count-skeleton"></view>
+      </view>
+      
+      <view class="rating-distribution">
+        <view class="rating-item" wx:for="{{5}}" wx:key="index">
+          <view class="skeleton rating-level-skeleton"></view>
+          <view class="rating-bar">
+            <view class="skeleton rating-fill-skeleton"></view>
+          </view>
+          <view class="skeleton rating-percent-skeleton"></view>
+        </view>
+      </view>
+    </view>
+    
+    <view class="review-list">
+      <view class="review-item" wx:for="{{2}}" wx:key="index">
+        <view class="review-header">
+          <view class="review-user">
+            <view class="skeleton user-avatar-skeleton"></view>
+            <view class="user-info">
+              <view class="skeleton user-name-skeleton"></view>
+              <view class="skeleton review-time-skeleton"></view>
+            </view>
+          </view>
+          <view class="rating-stars">
+            <view class="skeleton star-skeleton" wx:for="{{5}}" wx:key="star"></view>
+          </view>
+        </view>
+        <view class="skeleton review-content-skeleton"></view>
+        <view class="review-images">
+          <view class="skeleton review-image-skeleton" wx:for="{{3}}" wx:key="img"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 商品问答模块 -->
+  <view class="question-section" wx:if="{{!loading}}">
+    <view class="section-title">
+      <text>商品问答</text>
+      <text class="more-btn" bindtap="onViewAllQuestions">查看全部</text>
+    </view>
+    
+    <view class="question-list">
+      <view class="question-item" wx:for="{{questions}}" wx:key="id">
+        <view class="question-header">
+          <view class="question-user">
+            <image class="user-avatar" src="{{item.user.avatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=user%20avatar%20placeholder&image_size=square'}}" />
+            <view class="user-info">
+              <view class="user-name">{{item.isAnonymous ? '匿名用户' : (item.user.name || '匿名用户')}}</view>
+              <view class="question-time">{{item.createdAt}}</view>
+            </view>
+          </view>
+        </view>
+        <view class="question-content">{{item.content}}</view>
+        <view class="answer-list" wx:if="{{item.answers && item.answers.length > 0}}">
+          <view class="answer-item" wx:for="{{item.answers}}" wx:key="id">
+            <view class="answer-header">
+              <view class="answer-user">
+                <image class="user-avatar" src="{{answer.user.avatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=user%20avatar%20placeholder&image_size=square'}}" />
+                <view class="user-info">
+                  <view class="user-name">{{answer.user.name || '客服'}}</view>
+                  <view class="answer-time">{{answer.createdAt}}</view>
+                </view>
+              </view>
+            </view>
+            <view class="answer-content">{{answer.content}}</view>
+          </view>
+        </view>
+        <view class="no-answers" wx:else>
+          暂无回答
+        </view>
+      </view>
+      <view class="no-questions" wx:if="{{questions.length == 0}}">
+        暂无问答
+      </view>
+    </view>
+    
+    <view class="ask-question-btn" bindtap="onAskQuestion">
+      我要提问
+    </view>
+  </view>
+  <!-- 商品问答模块骨架屏 -->
+  <view class="question-section skeleton-loading" wx:else>
+    <view class="section-title">
+      <text>商品问答</text>
+      <text class="more-btn">查看全部</text>
+    </view>
+    
+    <view class="question-list">
+      <view class="question-item" wx:for="{{2}}" wx:key="index">
+        <view class="question-header">
+          <view class="question-user">
+            <view class="skeleton user-avatar-skeleton"></view>
+            <view class="user-info">
+              <view class="skeleton user-name-skeleton"></view>
+              <view class="skeleton question-time-skeleton"></view>
+            </view>
+          </view>
+        </view>
+        <view class="skeleton question-content-skeleton"></view>
+        <view class="answer-list">
+          <view class="answer-item">
+            <view class="answer-header">
+              <view class="answer-user">
+                <view class="skeleton user-avatar-skeleton"></view>
+                <view class="user-info">
+                  <view class="skeleton user-name-skeleton"></view>
+                  <view class="skeleton answer-time-skeleton"></view>
+                </view>
+              </view>
+            </view>
+            <view class="skeleton answer-content-skeleton"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <view class="skeleton ask-question-btn-skeleton"></view>
+  </view>
+
 
 
   <!-- 底部操作栏 -->

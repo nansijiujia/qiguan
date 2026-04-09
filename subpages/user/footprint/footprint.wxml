@@ -1,0 +1,39 @@
+<!-- footprint.wxml -->
+<view class="container">
+  <view class="header">
+    <view class="nav-left" bindtap="onBack">
+      <icon type="left" size="28" color="#1f2937" />
+    </view>
+    <view class="nav-title">浏览足迹</view>
+    <view class="nav-right" bindtap="clearAll">
+      <text class="clear-btn">清空</text>
+    </view>
+  </view>
+  
+  <view class="footprint-list">
+    <view class="footprint-date" wx:for="{{footprintGroups}}" wx:key="date">
+      <text class="date-text">{{item.date}}</text>
+      <view class="footprint-items">
+        <view wx:for="{{item.items}}" wx:key="id" class="footprint-item">
+          <view class="footprint-image">
+            <image src="{{item.image}}" mode="aspectFill" />
+          </view>
+          <view class="footprint-info">
+            <text class="footprint-name">{{item.name}}</text>
+            <text class="footprint-price">¥{{item.price.toFixed(2)}}</text>
+            <view class="footprint-actions">
+              <button class="action-btn buy-btn" bindtap="buyNow" data-id="{{item.id}}">立即购买</button>
+              <button class="action-btn favorite-btn" bindtap="addToFavorite" data-id="{{item.id}}">收藏</button>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <view class="empty-state" wx:if="{{totalFootprints === 0}}">
+    <image src="/images/足迹.png" mode="aspectFill" />
+    <text class="empty-text">暂无浏览记录</text>
+    <button class="empty-btn" bindtap="goShopping">去购物</button>
+  </view>
+</view>
