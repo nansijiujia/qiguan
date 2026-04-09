@@ -43,9 +43,22 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors({
-  origin: '*',
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'https://qimengzhiyue.cn',
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173'
+    ];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS policy'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
   optionsSuccessStatus: 200
 }));
 
@@ -53,13 +66,13 @@ app.options('*', (req, res) => res.status(200).send());
 
 const routes = [
   { path: '/auth', module: './routes/auth' },
-  { path: '/categories', module: './routes/categories' },
-  { path: '/products', module: './routes/products' },
-  { path: '/dashboard', module: './routes/dashboard' },
+  { path: '/categories', module: './routes/categories', middleware: [verifyToken] },
+  { path: '/products', module: './routes/products', middleware: [verifyToken] },
+  { path: '/dashboard', module: './routes/dashboard', middleware: [verifyToken] },
   { path: '/orders', module: './routes/orders', middleware: [verifyToken] },
   { path: '/users', module: './routes/users', middleware: [verifyToken, requireRole('admin')] },
-  { path: '/cart', module: './routes/cart' },
-  { path: '/content', module: './routes/content' },
+  { path: '/cart', module: './routes/cart', middleware: [verifyToken] },
+  { path: '/content', module: './routes/content', middleware: [verifyToken] },
   { path: '/search', module: './routes/search' },
   { path: '/health', module: './routes/health' }
 ];
