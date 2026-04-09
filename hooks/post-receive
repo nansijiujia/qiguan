@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# ============================================================
+# Git Post-Receive Hook - 自动部署触发器
+# 位置: /var/www/qiguan.git/hooks/post-receive
+# 功能: 当开发者 git push 后自动执行部署
+# ============================================================
+
+# 日志目录
+LOG_DIR="/var/log/qiguan"
+DEPLOY_SCRIPT="/var/www/qiguan/auto-deploy.sh"
+
+mkdir -p "$LOG_DIR"
+
+echo "=========================================="
+echo "🚀 Git Push 检测到，开始自动部署..."
+echo "时间: $(date)"
+echo "=========================================="
+
+# 记录推送信息
+while read oldrev newrev refname; do
+    echo "[GIT] Branch: $(basename $refname)" | tee -a "$LOG_DIR/git-push.log"
+    echo "[GIT] Commit: $newrev" | tee -a "$LOG_DIR/git-push.log"
+    echo "[GIT] User: $(whoami)" | tee -a "$LOG_DIR/git-push.log"
+    echo "[GIT] Time: $(date)" | tee -a "$LOG_DIR/git-push.log"
+    echo "---" >> "$LOG_DIR/git-push.log"
+done
+
+# 执行部署脚本（后台运行，不阻塞git push）
+if [ -f "$DEPLOY_SCRIPT" ]; then
+    nohup bash "$DEPLOY_SCRIPT" > "$LOG_DIR/deploy-$(date +%Y%m%d_%H%M%S).log" 2>&1 &
+    
+    DEPLOY_PID=$!
+    echo "✅ 部署已在后台启动 (PID: $DEPLOY_PID)"
+    echo "📋 查看日志: tail -f $LOG_DIR/deploy-$(date +%Y%m%d_%H%M%S).log"
+else
+    echo "❌ 部署脚本不存在: $DEPLOY_SCRIPT"
+    exit 1
+fi
+
+echo "=========================================="
+echo "✨ 自动部署流程已启动！"
+echo "=========================================="
