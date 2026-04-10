@@ -160,16 +160,17 @@ function getPool() {
  */
 async function query(sql, params = []) {
     const poolInstance = getPool();
-    
+    let startTime;
+
     if (dbConfig.debug) {
-        const startTime = Date.now();
+        startTime = Date.now();
         log(`[MySQL/DEBUG] ⏱️  SQL: ${sql}`, 'debug');
         if (params.length > 0) log(`[MySQL/DEBUG] 📋 Params: ${JSON.stringify(params)}`, 'debug');
     }
-    
+
     try {
         const [rows] = await poolInstance.execute(sql, params);
-        
+
         if (dbConfig.debug) {
             const duration = Date.now() - startTime;
             log(`[MySQL/DEBUG] ✅ 查询完成 (${duration}ms), 返回 ${rows.length} 行`, 'debug');
