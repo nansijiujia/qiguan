@@ -108,6 +108,9 @@ function startHealthCheck() {
 }
 
 /**
+ * 初始化MySQL连接池
+ * @returns {Promise<mysql.Pool>} 连接池实例
+ */
 async function initPool() {
     try {
         pool = mysql.createPool(dbConfig);
@@ -117,7 +120,7 @@ async function initPool() {
         
         log('[MySQL/TDSQL-C] ✅ 数据库连接池初始化成功');
         log(`[MySQL/TDSQL-C] 📍 主机: ${dbConfig.host}:${dbConfig.port}`);
-        log(`[MySQL/TDSQL-C] 📦 数据库: ${database}`);
+        log(`[MySQL/TDSQL-C] 📦 数据库: ${dbConfig.database}`);
         log(`[MySQL/TDSQL-C] 🔗 连接池大小: ${dbConfig.connectionLimit}`);
         
         // 获取连接信息
