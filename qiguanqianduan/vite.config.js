@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
-    base: '/',
+    base: '/admin/',
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
