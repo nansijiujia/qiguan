@@ -1,0 +1,79 @@
+module.exports = {
+  apps: [{
+    name: 'qiguan-backend',
+    script: './index.js',
+
+    // ============================================================
+    // 生产环境配置 (Production)
+    // ============================================================
+
+    // 实例配置
+    instances: 1,           // 单实例（数据库连接池考虑，避免连接数过多）
+    exec_mode: 'fork',      // fork模式（调试更方便，cluster模式适合CPU密集型）
+
+    // 环境变量
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+    env_production: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+
+    // 日志配置
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    error_file: '/var/log/qiguan/error.log',
+    out_file: '/var/log/qiguan/out.log',
+    merge_logs: true,        // 合并所有实例日志到同一文件
+    log_type: 'json',        // JSON格式日志，便于后续分析
+
+    // 内存和CPU限制
+    max_memory_restart: '256M',   // 内存超过256MB自动重启（防止内存泄漏）
+    min_uptime: '10s',            // 最小运行时间10秒才视为稳定启动
+    max_restarts: 10,             // 10秒内最多重启10次（之后停止重启）
+
+    // 优雅关闭
+    kill_timeout: 5000,           // 强制杀死进程的超时时间（5秒）
+    wait_ready: true,             // 等待app发送'ready'信号
+    listen_timeout: 10000,        // 等待监听端口的超时时间（10秒）
+
+    // 自动重启延迟
+    restart_delay: 4000,          // 崩溃后延迟4秒再重启（避免频繁重启风暴）
+
+    // 源码映射（便于调试）
+    source_map_support: true,
+
+    // Node.js 参数
+    node_args: '--max-old-space-size=256',  // V8堆内存上限256MB
+
+    // 进程管理
+    autorestart: true,           // 异常退出后自动重启
+    watch: false,                // 生产环境不监听文件变化
+    ignore_watch: [              // 忽略监听的目录
+      'node_modules',
+      'logs',
+      'backups',
+      '.git'
+    ],
+
+    // cron定时任务（可选，用于定期清理等）
+    // cron_restart: '0 4 * * *',  // 每天凌晨4点重启（释放内存）
+
+    // 部署配置（可选，配合pm2 deploy使用）
+    // deploy: {
+    //   production: {
+    //     user: 'www-data',
+    //     host: 'localhost',
+    //     ref: 'origin/main',
+    //     repo: 'https://github.com/nansijiujia/qiguan.git',
+    //     path: '/www/wwwroot/qiguan-backend',
+    //     'pre-deploy': 'git fetch --all',
+    //     'post-deploy': 'npm install && pm2 reload ecosystem.config.js.production --env production',
+    //     env: {
+    //       NODE_ENV: 'production'
+    //     }
+    //   }
+    // }
+  }]
+};

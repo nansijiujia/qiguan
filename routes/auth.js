@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { getOne, execute } = require('../db_mysql');
+const { getOne, execute, query } = require('../db_mysql');
 const { verifyToken, generateToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
 

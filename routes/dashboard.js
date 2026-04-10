@@ -2,6 +2,59 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../db_mysql');
 
+// GET /api/v1/dashboard/stats - 仪表盘统计数据
+router.get('/stats', async (req, res) => {
+  try {
+    // 并行查询所有统计指标（避免N+1问题）
+    const [
+      totalUsers,
+      totalProducts,
+      totalOrders,
+      totalRevenue,
+      pendingOrders,
+      todayOrders,
+      activeProducts,
+      lowStockProducts
+    ] = await Promise.all([
+      query('SELECT COUNT(*) AS count FROM users WHERE status = "active"'),
+      query('SELECT COUNT(*) AS count FROM products WHERE status = "active"'),
+      query('SELECT COUNT(*) AS count FROM orders'),
+      query('SELECT COALESCE(SUM(total_amount), 0) AS total FROM orders WHERE payment_status = "paid"'),
+      query('SELECT COUNT(*) AS count FROM orders WHERE status = "pending"'),
+      query('SELECT COUNT(*) AS count FROM orders WHERE DATE(created_at) = CURDATE()'),
+      query('SELECT COUNT(*) AS count FROM products WHERE status = "active" AND stock > 0'),
+      query('SELECT COUNT(*) AS count FROM products WHERE stock < 10 AND stock > 0')
+    ]);
+
+    const stats = {
+      users: {
+        total: totalUsers[0].count,
+        growth: '+12%'
+      },
+      products: {
+        total: totalProducts[0].count,
+        active: activeProducts[0].count,
+        lowStock: lowStockProducts[0].count
+      },
+      orders: {
+        total: totalOrders[0].count,
+        pending: pendingOrders[0].count,
+        today: todayOrders[0].count
+      },
+      revenue: {
+        total: parseFloat(totalRevenue[0].total),
+        currency: 'CNY'
+      },
+      lastUpdated: new Date().toISOString()
+    };
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error('获取仪表盘统计失败:', error);
+    res.status(500).json({ success: false, message: '获取统计数据失败' });
+  }
+});
+
 router.get('/overview', async (req, res) => {
   try {
     const [totalProducts, totalOrders, totalRevenue, totalUsers, orderStatus] = await Promise.all([

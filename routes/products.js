@@ -110,57 +110,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const sql = `SELECT p.*, c.name as category_name
-                 FROM products p
-                 LEFT JOIN categories c ON p.category_id = c.id
-                 WHERE p.id = ?`;
-    const product = await getOne(sql, [id]);
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: '商品不存在'
-        }
-      });
-    }
-
-    const formattedProduct = formatProduct(product);
-
-    if (product.category_id) {
-      const similarSql = `SELECT p.*, c.name as category_name
-                          FROM products p
-                          LEFT JOIN categories c ON p.category_id = c.id
-                          WHERE p.category_id = ? AND p.id != ? AND p.status = ?
-                          ORDER BY p.created_at DESC
-                          LIMIT 5`;
-      const similarProducts = await query(similarSql, [product.category_id, id, 'active']);
-      formattedProduct.similar_products = similarProducts.map(formatProduct);
-    } else {
-      formattedProduct.similar_products = [];
-    }
-
-    res.json({
-      success: true,
-      data: formattedProduct
-    });
-  } catch (error) {
-    console.error('[ERROR] Getting product details:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取商品详情失败'
-      }
-    });
-  }
-});
-
+// 固定路径路由（必须在 /:id 之前，避免被参数路由拦截）
 router.get('/recommended', async (req, res) => {
   try {
     const { limit = 10, user_id } = req.query;
@@ -567,6 +517,58 @@ router.get('/category/:id', async (req, res) => {
       error: {
         code: 'INTERNAL_ERROR',
         message: '获取分类下商品列表失败'
+      }
+    });
+  }
+});
+
+// 参数路由（必须放在最后！避免拦截固定路径如 /recommended, /hot, /search）
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const sql = `SELECT p.*, c.name as category_name
+                 FROM products p
+                 LEFT JOIN categories c ON p.category_id = c.id
+                 WHERE p.id = ?`;
+    const product = await getOne(sql, [id]);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: '商品不存在'
+        }
+      });
+    }
+
+    const formattedProduct = formatProduct(product);
+
+    if (product.category_id) {
+      const similarSql = `SELECT p.*, c.name as category_name
+                          FROM products p
+                          LEFT JOIN categories c ON p.category_id = c.id
+                          WHERE p.category_id = ? AND p.id != ? AND p.status = ?
+                          ORDER BY p.created_at DESC
+                          LIMIT 5`;
+      const similarProducts = await query(similarSql, [product.category_id, id, 'active']);
+      formattedProduct.similar_products = similarProducts.map(formatProduct);
+    } else {
+      formattedProduct.similar_products = [];
+    }
+
+    res.json({
+      success: true,
+      data: formattedProduct
+    });
+  } catch (error) {
+    console.error('[ERROR] Getting product details:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: '获取商品详情失败'
       }
     });
   }

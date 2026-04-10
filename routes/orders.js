@@ -144,4 +144,72 @@ router.put('/:id/status', async (req, res) => {
   }
 });
 
+// PUT /api/v1/orders/:id/cancel - 取消订单
+router.put('/:id/cancel', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.user?.userId || req.user?.id;
+
+    // 检查订单是否存在且属于当前用户（如果是普通用户）
+    let order;
+    if (userId) {
+      const [orders] = await query(
+        'SELECT * FROM orders WHERE id = ? AND user_id = ?',
+        [orderId, userId]
+      );
+
+      if (!orders) {
+        return res.status(404).json({ success: false, message: '订单不存在或无权操作' });
+      }
+      order = orders;
+    } else {
+      // 管理员可以直接查询
+      order = await getOne('SELECT * FROM orders WHERE id = ?', [orderId]);
+      if (!order) {
+        return res.status(404).json({ success: false, message: '订单不存在' });
+      }
+    }
+
+    // 检查订单状态是否可取消（只有待付款和待发货可取消）
+    if (!['pending', 'paid'].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `当前订单状态为${order.status}，无法取消`
+      });
+    }
+
+    // 更新订单状态
+    await execute(
+      "UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?",
+      ['cancelled', orderId]
+    );
+
+    // 如果已支付，需要退款逻辑（此处简化处理）
+    if (order.payment_status === 'paid') {
+      // TODO: 调用退款接口
+      console.log(`[ORDER] 订单 ${orderId} 需要退款，金额: ${order.total_amount}`);
+    }
+
+    // 记录管理员日志（如果有admin_logs表）
+    try {
+      await execute(
+        `INSERT INTO admin_logs (admin_id, action, target_type, target_id, details, ip_address)
+         VALUES (?, 'cancel_order', 'order', ?, ?, ?)`,
+        [userId || 0, orderId, JSON.stringify({ orderId, previousStatus: order.status }), req.ip || 'unknown']
+      );
+    } catch (logError) {
+      console.warn('[WARN] 无法记录管理日志:', logError.message);
+    }
+
+    res.json({
+      success: true,
+      message: '订单已成功取消',
+      data: { orderId, newStatus: 'cancelled' }
+    });
+  } catch (error) {
+    console.error('[ERROR] 取消订单失败:', error);
+    res.status(500).json({ success: false, message: '取消订单失败，请稍后重试' });
+  }
+});
+
 module.exports = router;

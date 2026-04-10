@@ -35,12 +35,29 @@ const { log } = console;
  * ============================================================
  */
 
+// 强制生产环境必须配置数据库凭证（安全要求）
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_PASSWORD || !process.env.DB_NAME) {
+    console.error('========================================');
+    console.error('[FATAL] Production environment requires:');
+    console.error('  - DB_HOST');
+    console.error('  - DB_USER');
+    console.error('  - DB_PASSWORD');
+    console.error('  - DB_NAME');
+    console.error('');
+    console.error('Please configure these in .env.production file');
+    console.error('========================================');
+    process.exit(1);
+  }
+  log('[SECURITY] ✅ Production database credentials validated from environment variables');
+}
+
 const dbConfig = {
-  host: process.env.DB_HOST || '10.0.0.16',
+  host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'QMZYXCX',
-  password: process.env.DB_PASSWORD || 'LJN040821.',
-  database: process.env.DB_NAME || 'qmzyxcx',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'test',
 
   // 连接池配置 (生产级优化)
   connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 20,
