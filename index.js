@@ -10,6 +10,7 @@ const http = require('http');
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const { verifyToken, requireRole } = require('./middleware/auth');
+const { CORS_CONFIG } = require('./config/domain');
 
 // 强制使用云MySQL数据库，不支持本地SQLite
 const dbType = process.env.DB_TYPE || 'mysql';
@@ -39,25 +40,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cors({
-  origin: function(origin, callback) {
-    const allowedOrigins = [
-      'https://qimengzhiyue.cn',
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173'
-    ];
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS policy'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
+app.use(cors(CORS_CONFIG));
 
 app.options('*', (req, res) => res.status(200).send());
 

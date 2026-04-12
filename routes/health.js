@@ -3,8 +3,8 @@ const express = require('express');
 const { query } = require('../db_mysql');
 const router = express.Router();
 
-// 健康检查 - 简单版本
-router.get('/health', (req, res) => {
+// 健康检查 - 根路径（因为已在index.js中挂载到/api/v1/health）
+router.get('/', (req, res) => {
   try {
     res.json({
       status: 'healthy',
@@ -24,7 +24,7 @@ router.get('/health', (req, res) => {
 });
 
 // 数据库测试
-router.get('/health/db-test', async (req, res) => {
+router.get('/db-test', async (req, res) => {
   try {
     const result = await query('SELECT 1 AS test');
     if (result && result.length > 0) {
