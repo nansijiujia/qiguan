@@ -1,6 +1,11 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+// [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
+// [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
+
 const express = require('express');
 const router = express.Router();
-const { query } = require('../db_mysql');
+const { query } = require('../db_mysql')
+const { validateRequestBody } = require('../utils/validation');;
 
 // GET /api/v1/dashboard/stats - 仪表盘统计数据
 router.get('/stats', async (req, res) => {
@@ -50,7 +55,7 @@ router.get('/stats', async (req, res) => {
 
     res.json({ success: true, data: stats });
   } catch (error) {
-    console.error('获取仪表盘统计失败:', error);
+    
     res.status(500).json({ success: false, message: '获取统计数据失败' });
   }
 });
@@ -78,7 +83,7 @@ router.get('/overview', async (req, res) => {
     try {
       cartStats = await getCartStats();
     } catch (err) {
-      console.warn('[WARN] Cart stats unavailable:', err.message);
+      
       cartStats = getDefaultCartStats();
     }
 
@@ -86,7 +91,7 @@ router.get('/overview', async (req, res) => {
     try {
       favoriteStats = await getFavoriteStats();
     } catch (err) {
-      console.warn('[WARN] Favorite stats unavailable:', err.message);
+      
       favoriteStats = getDefaultFavoriteStats();
     }
 
@@ -94,7 +99,7 @@ router.get('/overview', async (req, res) => {
     try {
       couponStats = await getCouponStats();
     } catch (err) {
-      console.warn('[WARN] Coupon stats unavailable:', err.message);
+      
       couponStats = getDefaultCouponStats();
     }
 
@@ -102,7 +107,7 @@ router.get('/overview', async (req, res) => {
     try {
       recentOrders = await getRecentOrders();
     } catch (err) {
-      console.warn('[WARN] Recent orders unavailable:', err.message);
+      
       recentOrders = [];
     }
 
@@ -110,7 +115,7 @@ router.get('/overview', async (req, res) => {
     try {
       userGrowth = await getUserGrowth();
     } catch (err) {
-      console.warn('[WARN] User growth unavailable:', err.message);
+      
       userGrowth = getDefaultUserGrowth();
     }
 
@@ -118,7 +123,7 @@ router.get('/overview', async (req, res) => {
     try {
       realtimeMetrics = await getRealtimeMetrics();
     } catch (err) {
-      console.warn('[WARN] Realtime metrics unavailable:', err.message);
+      
       realtimeMetrics = getDefaultRealtimeMetrics();
     }
 
@@ -143,7 +148,7 @@ router.get('/overview', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting overview:', error);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '获取概览数据失败' }
@@ -154,19 +159,20 @@ router.get('/overview', async (req, res) => {
 async function getCartStats() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 19).replace('T', ' ');
 
   const [totalCartsResult, activeCartsResult, abandonedResult, avgItemsResult, cartTrendResult] = await Promise.all([
     query('SELECT COUNT(DISTINCT user_id) as count FROM cart'),
-    query(`SELECT COUNT(DISTINCT user_id) as count FROM cart WHERE updated_at >= '${sevenDaysAgo.toISOString().slice(0, 19).replace('T', ' ')}'`),
-    query(`SELECT COUNT(DISTINCT user_id) as count FROM cart WHERE updated_at < '${sevenDaysAgo.toISOString().slice(0, 19).replace('T', ' ')}'`),
+    query('SELECT COUNT(DISTINCT user_id) as count FROM cart WHERE updated_at >= ?', [sevenDaysAgoStr]),
+    query('SELECT COUNT(DISTINCT user_id) as count FROM cart WHERE updated_at < ?', [sevenDaysAgoStr]),
     query('SELECT COALESCE(AVG(cart_count), 0) as avg FROM (SELECT COUNT(*) as cart_count FROM cart GROUP BY user_id)'),
     query(`
       SELECT DATE(created_at) as date, COUNT(*) as count
       FROM cart
-      WHERE created_at >= '${sevenDaysAgo.toISOString().slice(0, 19).replace('T', ' ')}'
+      WHERE created_at >= ?
       GROUP BY DATE(created_at)
       ORDER BY date ASC
-    `)
+    `, [sevenDaysAgoStr])
   ]);
 
   const totalCarts = totalCartsResult[0]?.count || 0;
@@ -195,6 +201,7 @@ async function getCartStats() {
 async function getFavoriteStats() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 19).replace('T', ' ');
 
   const [totalFavoritesResult, topProductsResult, favoriteTrendResult] = await Promise.all([
     query('SELECT COUNT(*) as count FROM favorites'),
@@ -209,10 +216,10 @@ async function getFavoriteStats() {
     query(`
       SELECT DATE(created_at) as date, COUNT(*) as count
       FROM favorites
-      WHERE created_at >= '${sevenDaysAgo.toISOString().slice(0, 19).replace('T', ' ')}'
+      WHERE created_at >= ?
       GROUP BY DATE(created_at)
       ORDER BY date ASC
-    `)
+    `, [sevenDaysAgoStr])
   ]);
 
   const totalFavorites = totalFavoritesResult[0]?.count || 0;
@@ -237,9 +244,9 @@ async function getCouponStats() {
   const today = new Date().toISOString().split('T')[0];
 
   const [activeCouponsResult, todayReceivedResult, todayUsedResult, couponListResult] = await Promise.all([
-    query("SELECT COUNT(*) as count FROM coupons WHERE status='active' AND end_date >= DATE('now')"),
-    query(`SELECT COUNT(*) as count FROM user_coupons WHERE DATE(created_at) = '${today}'`),
-    query(`SELECT COUNT(*) as count FROM orders WHERE coupon_id IS NOT NULL AND DATE(created_at) = '${today}' AND status IN ('paid', 'shipped', 'completed')`),
+    query("SELECT COUNT(*) as count FROM coupons WHERE status='active' AND end_date >= CURDATE()"),
+    query('SELECT COUNT(*) as count FROM user_coupons WHERE DATE(created_at) = ?', [today]),
+    query(`SELECT COUNT(*) as count FROM orders WHERE coupon_id IS NOT NULL AND DATE(created_at) = ? AND status IN ('paid', 'shipped', 'completed')`, [today]),
     query(`
       SELECT id, name, stock, used_count
       FROM coupons
@@ -309,18 +316,22 @@ async function getUserGrowth() {
   const prevWeekAgo = new Date();
   prevWeekAgo.setDate(prevWeekAgo.getDate() - 14);
 
+  const weekAgoStr = weekAgo.toISOString().slice(0, 19).replace('T', ' ');
+  const monthAgoStr = monthAgo.toISOString().slice(0, 19).replace('T', ' ');
+  const prevWeekAgoStr = prevWeekAgo.toISOString().slice(0, 19).replace('T', ' ');
+
   const [newUsersToday, newUsersWeek, newUsersMonth, prevWeekUsers, trendResult] = await Promise.all([
-    query(`SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = DATE('now')`),
-    query(`SELECT COUNT(*) as count FROM users WHERE created_at >= '${weekAgo.toISOString().slice(0, 19).replace('T', ' ')}'`),
-    query(`SELECT COUNT(*) as count FROM users WHERE created_at >= '${monthAgo.toISOString().slice(0, 19).replace('T', ' ')}'`),
-    query(`SELECT COUNT(*) as count FROM users WHERE created_at >= '${prevWeekAgo.toISOString().slice(0, 19).replace('T', ' ')}' AND created_at < '${weekAgo.toISOString().slice(0, 19).replace('T', ' ')}'`),
+    query('SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURDATE()'),
+    query('SELECT COUNT(*) as count FROM users WHERE created_at >= ?', [weekAgoStr]),
+    query('SELECT COUNT(*) as count FROM users WHERE created_at >= ?', [monthAgoStr]),
+    query('SELECT COUNT(*) as count FROM users WHERE created_at >= ? AND created_at < ?', [prevWeekAgoStr, weekAgoStr]),
     query(`
       SELECT DATE(created_at) as date, COUNT(*) as count
       FROM users
-      WHERE created_at >= '${monthAgo.toISOString().slice(0, 19).replace('T', ' ')}'
+      WHERE created_at >= ?
       GROUP BY DATE(created_at)
       ORDER BY date ASC
-    `)
+    `, [monthAgoStr])
   ]);
 
   const thisWeek = newUsersWeek[0]?.count || 0;
@@ -351,12 +362,15 @@ async function getRealtimeMetrics() {
   thirtyMinsAgo.setMinutes(thirtyMinsAgo.getMinutes() - 30);
   const today = new Date().toISOString().split('T')[0];
 
+  const oneHourAgoStr = oneHourAgo.toISOString().slice(0, 19).replace('T', ' ');
+  const thirtyMinsAgoStr = thirtyMinsAgo.toISOString().slice(0, 19).replace('T', ' ');
+
   const [onlineUsers, ordersLastHour, revenueToday, todayOrders, todayUsers] = await Promise.all([
-    query(`SELECT COUNT(DISTINCT user_id) as count FROM orders WHERE updated_at >= '${thirtyMinsAgo.toISOString().slice(0, 19).replace('T', ' ')}'`),
-    query(`SELECT COUNT(*) as count FROM orders WHERE created_at >= '${oneHourAgo.toISOString().slice(0, 19).replace('T', ' ')}'`),
-    query(`SELECT COALESCE(SUM(total_amount), 0) as revenue FROM orders WHERE DATE(created_at) = '${today}' AND status IN ('paid', 'shipped', 'completed')`),
-    query(`SELECT COUNT(DISTINCT user_id) as count FROM orders WHERE DATE(created_at) = '${today}'`),
-    query(`SELECT COUNT(*) as count FROM users WHERE DATE(last_login) = '${today}' OR DATE(created_at) = '${today}'`)
+    query('SELECT COUNT(DISTINCT user_id) as count FROM orders WHERE updated_at >= ?', [thirtyMinsAgoStr]),
+    query('SELECT COUNT(*) as count FROM orders WHERE created_at >= ?', [oneHourAgoStr]),
+    query(`SELECT COALESCE(SUM(total_amount), 0) as revenue FROM orders WHERE DATE(created_at) = ? AND status IN ('paid', 'shipped', 'completed')`, [today]),
+    query('SELECT COUNT(DISTINCT user_id) as count FROM orders WHERE DATE(created_at) = ?', [today]),
+    query("SELECT COUNT(*) as count FROM users WHERE DATE(last_login) = ? OR DATE(created_at) = ?", [today, today])
   ]);
 
   const ordersToday = todayOrders[0]?.count || 0;
@@ -490,7 +504,7 @@ router.get('/sales', async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('Error getting sales:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -510,7 +524,7 @@ router.get('/products', async (req, res) => {
       data: { list, pagination: { page: 1, limit: 5, total: count } }
     });
   } catch (error) {
-    console.error('Error getting products:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -530,7 +544,7 @@ router.get('/users', async (req, res) => {
       data: { list, pagination: { page: 1, limit: 5, total: count } }
     });
   } catch (error) {
-    console.error('Error getting users:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -551,7 +565,7 @@ router.get('/orders', async (req, res) => {
       data: { list, pagination: { page: 1, limit: 10, total: count } }
     });
   } catch (error) {
-    console.error('Error getting orders:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

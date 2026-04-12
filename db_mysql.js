@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const mysql = require('mysql2/promise');
 const { log } = console;
+const { DATABASE_CONFIG } = require('./config/index');
 
 /**
  * ============================================================
@@ -53,33 +54,19 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'test',
-
-  // 连接池配置 (生产级优化)
-  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 20,
-  queueLimit: parseInt(process.env.DB_QUEUE_LIMIT) || 100,
-  waitForConnections: true,
+  ...DATABASE_CONFIG,
+  
+  // 扩展配置
+  charset: 'utf8mb4',
+  timezone: '+08:00',
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  debug: process.env.NODE_ENV === 'development',
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
   maxIdle: parseInt(process.env.DB_MAX_IDLE) || 10,
   idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT) || 60000,
   acquireTimeout: 30000,
-
-  // 字符集与时区
-  charset: 'utf8mb4',
-  timezone: '+08:00',
-
-  // SSL配置 (生产环境可选)
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-
-  // 调试模式 (生产环境关闭)
-  debug: process.env.NODE_ENV === 'development',
-
-  // 连接保活 (防止MySQL wait_timeout断开)
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0
+  queueLimit: parseInt(process.env.DB_QUEUE_LIMIT) || 100
 };
 
 // 全局连接池变量

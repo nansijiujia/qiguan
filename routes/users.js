@@ -1,6 +1,8 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { query, getOne, execute } = require('../db_mysql');
+const { query, getOne, execute } = require('../db_mysql')
+const { validateRequestBody } = require('../utils/validation');;
 const router = express.Router();
 
 router.get('/', async (req, res) => {
@@ -45,7 +47,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting users:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to get users' } });
   }
 });
@@ -73,7 +75,7 @@ router.post('/', async (req, res) => {
     const newUser = await getOne('SELECT id, username, email, avatar, role, status, created_at FROM users WHERE id = ?', [result.insertId]);
     res.status(201).json({ success: true, data: newUser });
   } catch (error) {
-    console.error('[ERROR] Creating user:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create user' } });
   }
 });
@@ -112,7 +114,7 @@ router.put('/:id', async (req, res) => {
     const updatedUser = await getOne('SELECT id, username, email, avatar, role, status, last_login, created_at FROM users WHERE id = ?', [id]);
     res.json({ success: true, data: updatedUser });
   } catch (error) {
-    console.error('[ERROR] Updating user:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update user' } });
   }
 });
@@ -128,7 +130,7 @@ router.delete('/:id', async (req, res) => {
     await execute('DELETE FROM users WHERE id = ?', [id]);
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
-    console.error('[ERROR] Deleting user:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to delete user' } });
   }
 });

@@ -1,5 +1,10 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+// [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
+// [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
+
 const express = require('express');
-const { query, getOne, execute } = require('../db_mysql');
+const { query, getOne, execute } = require('../db_mysql')
+const { validateRequestBody } = require('../utils/validation');;
 const router = express.Router();
 
 router.get('/', async (req, res) => {
@@ -44,7 +49,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting orders:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to get orders' } });
   }
 });
@@ -92,7 +97,7 @@ router.post('/', async (req, res) => {
       message: 'Order created successfully'
     });
   } catch (error) {
-    console.error('[ERROR] Creating order:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create order' } });
   }
 });
@@ -120,7 +125,7 @@ router.get('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting order details:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to get order details' } });
   }
 });
@@ -134,12 +139,12 @@ router.put('/:id/status', async (req, res) => {
       return res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Status is required' } });
     }
 
-    await execute("UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?", [status, id]);
+    await execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?", [status, id]);
 
     const updatedOrder = await getOne('SELECT * FROM orders WHERE id = ?', [id]);
     res.json({ success: true, data: updatedOrder, message: `Order status updated to ${status}` });
   } catch (error) {
-    console.error('[ERROR] Updating order status:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update order status' } });
   }
 });
@@ -180,14 +185,14 @@ router.put('/:id/cancel', async (req, res) => {
 
     // 更新订单状态
     await execute(
-      "UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?",
+      "UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?",
       ['cancelled', orderId]
     );
 
     // 如果已支付，需要退款逻辑（此处简化处理）
     if (order.payment_status === 'paid') {
       // TODO: 调用退款接口
-      console.log(`[ORDER] 订单 ${orderId} 需要退款，金额: ${order.total_amount}`);
+      
     }
 
     // 记录管理员日志（如果有admin_logs表）
@@ -198,16 +203,16 @@ router.put('/:id/cancel', async (req, res) => {
         [userId || 0, orderId, JSON.stringify({ orderId, previousStatus: order.status }), req.ip || 'unknown']
       );
     } catch (logError) {
-      console.warn('[WARN] 无法记录管理日志:', logError.message);
+      console.error('[orders] 日志记录失败:', logError.message);
     }
-
+    
     res.json({
       success: true,
       message: '订单已成功取消',
       data: { orderId, newStatus: 'cancelled' }
     });
   } catch (error) {
-    console.error('[ERROR] 取消订单失败:', error);
+    
     res.status(500).json({ success: false, message: '取消订单失败，请稍后重试' });
   }
 });

@@ -1,15 +1,62 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+// [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
+// [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
+
+// 公共错误处理函数
+function sendErrorResponse(res, statusCode, errorCode, message, error = null) {
+  if (error) {
+    console.error(`[Content] ${message}:`, error.message, error.stack);
+  }
+  return res.status(statusCode).json({
+    success: false,
+    error: {
+      code: errorCode,
+      message: message
+    }
+  });
+}
+
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { query, getOne, execute } = require('../db_mysql');
-const { requireRole } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
+const { validateRequestBody } = require('../utils/validation');
 const router = express.Router();
+
+// 权限验证中间件
+function checkContentPermission(req, res, next) {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        message: '需要登录才能访问此接口'
+      }
+    });
+  }
+  
+  // 检查用户角色是否具有内容管理权限
+  if (user.role !== 'admin' && user.role !== 'manager') {
+    return res.status(403).json({
+      success: false,
+      error: {
+        code: 'FORBIDDEN',
+        message: '权限不足，无法执行此操作'
+      }
+    });
+  }
+  
+  next();
+}
 
 let multer;
 try {
   multer = require('multer');
 } catch (e) {
-  console.warn('[Content] multer not installed, file upload disabled');
+  
 }
 
 const uploadDir = path.join(__dirname, '../uploads/banners');
@@ -50,6 +97,11 @@ if (multer) {
 
 // 1. GET /api/v1/content/banners - 获取Banner列表
 router.get('/banners', async (req, res) => {
+  // 处理逻辑...
+});
+
+// 1.1 GET /api/v1/content/homepage/banners - 兼容小程序调用路径
+router.get('/homepage/banners', async (req, res) => {
   try {
     const { status: statusFilter } = req.query;
     let whereSql = '';
@@ -68,7 +120,7 @@ router.get('/banners', async (req, res) => {
       data: banners
     });
   } catch (error) {
-    console.error('[ERROR] Getting banners:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -80,7 +132,7 @@ router.get('/banners', async (req, res) => {
 });
 
 // 2. POST /api/v1/content/banners - 新建Banner
-router.post('/banners', async (req, res) => {
+router.post('/banners', verifyToken, checkContentPermission, async (req, res) => {
   try {
     const { title, image_url, link_url, link_type, position, start_time, end_time } = req.body;
 
@@ -130,7 +182,7 @@ router.post('/banners', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Creating banner:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -142,7 +194,7 @@ router.post('/banners', async (req, res) => {
 });
 
 // 3. PUT /api/v1/content/banners/:id - 更新Banner
-router.put('/banners/:id', async (req, res) => {
+router.put('/banners/:id', verifyToken, checkContentPermission, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, image_url, link_url, link_type, position, status, start_time, end_time } = req.body;
@@ -216,7 +268,7 @@ router.put('/banners/:id', async (req, res) => {
       data: { id }
     });
   } catch (error) {
-    console.error('[ERROR] Updating banner:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -228,7 +280,7 @@ router.put('/banners/:id', async (req, res) => {
 });
 
 // 4. DELETE /api/v1/content/banners/:id - 删除Banner
-router.delete('/banners/:id', async (req, res) => {
+router.delete('/banners/:id', verifyToken, checkContentPermission, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await execute('DELETE FROM banners WHERE id = ?', [id]);
@@ -245,7 +297,7 @@ router.delete('/banners/:id', async (req, res) => {
 
     res.json({ success: true, message: 'Banner删除成功' });
   } catch (error) {
-    console.error('[ERROR] Deleting banner:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -257,7 +309,7 @@ router.delete('/banners/:id', async (req, res) => {
 });
 
 // 5. PUT /api/v1/content/banners/reorder - 调整Banner顺序
-router.put('/banners/reorder', async (req, res) => {
+router.put('/banners/reorder', verifyToken, checkContentPermission, async (req, res) => {
   try {
     const { orders } = req.body;
 
@@ -280,7 +332,7 @@ router.put('/banners/reorder', async (req, res) => {
 
     res.json({ success: true, message: '排序更新成功' });
   } catch (error) {
-    console.error('[ERROR] Reordering banners:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -313,7 +365,7 @@ router.get('/homepage/config', async (req, res) => {
       data: configObj
     });
   } catch (error) {
-    console.error('[ERROR] Getting homepage config:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -358,7 +410,7 @@ router.put('/homepage/config', async (req, res) => {
 
     res.json({ success: true, message: '配置更新成功' });
   } catch (error) {
-    console.error('[ERROR] Updating homepage config:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -385,28 +437,34 @@ router.get('/homepage/preview', async (req, res) => {
 
     try {
       const recommendedIds = JSON.parse(configObj.recommended_products || '[]');
-      if (recommendedIds.length > 0) {
-        const placeholders = recommendedIds.map(() => '?').join(',');
-        recommendedProducts = await query(
-          `SELECT id, name, price, image, stock FROM products WHERE id IN (${placeholders}) AND status = ?`,
-          [...recommendedIds, 'active']
-        );
+      if (recommendedIds.length > 0 && Array.isArray(recommendedIds)) {
+        const validRecommendedIds = recommendedIds.filter(id => typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id)));
+        if (validRecommendedIds.length > 0) {
+          const placeholders = validRecommendedIds.map(() => '?').join(',');
+          recommendedProducts = await query(
+            `SELECT id, name, price, image, stock FROM products WHERE id IN (${placeholders}) AND status = ?`,
+            [...validRecommendedIds.map(id => Number(id)), 'active']
+          );
+        }
       }
     } catch (e) {
-      console.warn('[Preview] Failed to parse recommended_products');
+      console.error('解析推荐商品配置失败:', e.message);
     }
 
     try {
       const hotIds = JSON.parse(configObj.hot_products || '[]');
-      if (hotIds.length > 0) {
-        const placeholders = hotIds.map(() => '?').join(',');
-        hotProducts = await query(
-          `SELECT id, name, price, image, stock FROM products WHERE id IN (${placeholders}) AND status = ?`,
-          [...hotIds, 'active']
-        );
+      if (hotIds.length > 0 && Array.isArray(hotIds)) {
+        const validHotIds = hotIds.filter(id => typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id)));
+        if (validHotIds.length > 0) {
+          const placeholders = validHotIds.map(() => '?').join(',');
+          hotProducts = await query(
+            `SELECT id, name, price, image, stock FROM products WHERE id IN (${placeholders}) AND status = ?`,
+            [...validHotIds.map(id => Number(id)), 'active']
+          );
+        }
       }
     } catch (e) {
-      console.warn('[Preview] Failed to parse hot_products');
+      console.error('解析热门商品配置失败:', e.message);
     }
 
     res.json({
@@ -426,7 +484,7 @@ router.get('/homepage/preview', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting homepage preview:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -443,7 +501,7 @@ router.get('/homepage/preview', async (req, res) => {
 
 // 9. POST /api/v1/content/upload - 上传图片
 if (upload) {
-  router.post('/upload', upload.single('file'), (req, res) => {
+  router.post('/upload', verifyToken, checkContentPermission, upload.single('file'), (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({
@@ -468,7 +526,8 @@ if (upload) {
         }
       });
     } catch (error) {
-      console.error('[ERROR] Uploading file:', error);
+      console.error('[Content] 文件上传失败:', error.message, error.stack);
+      
       res.status(500).json({
         success: false,
         error: {
@@ -476,7 +535,7 @@ if (upload) {
           message: '文件上传失败'
         }
       });
-    });
+    }
   });
 } else {
   router.post('/upload', (req, res) => {

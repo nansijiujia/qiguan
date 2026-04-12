@@ -1,5 +1,10 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+// [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
+// [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
+
 const express = require('express');
-const { query, getOne, execute } = require('../db_mysql');
+const { query, getOne, execute } = require('../db_mysql')
+const { validateRequestBody } = require('../utils/validation');;
 const router = express.Router();
 
 function buildTree(categories, parentId = null) {
@@ -41,7 +46,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting categories:', error);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '获取分类列表失败' }
@@ -83,7 +88,7 @@ router.get('/tree', async (req, res) => {
       data: tree
     });
   } catch (error) {
-    console.error('[ERROR] Getting category tree:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -140,7 +145,7 @@ router.get('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting category details:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -190,7 +195,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, datetime('now'))`;
+    const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, NOW())`;
     const result = await execute(sql, [
       name.trim(),
       parent_id || null,
@@ -210,7 +215,7 @@ router.post('/', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Adding category:', error);
+    
     if (error.code === 'ER_DUP_ENTRY' || error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return res.status(409).json({
         success: false,
@@ -288,7 +293,7 @@ router.put('/:id', async (req, res) => {
     }
 
     params.push(id);
-    const sql = `UPDATE categories SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ?`;
+    const sql = `UPDATE categories SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {
@@ -312,7 +317,7 @@ router.put('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Updating category:', error);
+    
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({
         success: false,
@@ -372,7 +377,7 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ success: true, message: '分类删除成功' });
   } catch (error) {
-    console.error('[ERROR] Deleting category:', error);
+    
     res.status(500).json({
       success: false,
       error: {

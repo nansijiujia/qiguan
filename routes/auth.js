@@ -1,3 +1,9 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+// [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
+// [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
+
+const { validateRequestBody } = require('../utils/validation');
+
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { getOne, execute, query } = require('../db_mysql');
@@ -73,7 +79,7 @@ router.post('/login', async (req, res) => {
 
     const passwordHash = user.password || user.password_hash;
     if (!passwordHash) {
-      console.error('[AUTH] No password field found for user:', user.username);
+      
       return res.status(500).json({
         success: false,
         error: {
@@ -114,7 +120,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[AUTH] Login error:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -169,8 +175,8 @@ router.post('/register', async (req, res) => {
 
     const result = await query(
       `INSERT INTO users (username, email, password, role, status, created_at)
-       VALUES (?, ?, ?, ?, 'active', NOW())`,
-      [username, email, passwordHash, role || 'user']
+       VALUES (?, ?, ?, 'user', 'active', NOW())`,
+      [username, email, passwordHash]
     );
 
     const newUser = await getOne(
@@ -199,7 +205,7 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[AUTH] Register error:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -232,7 +238,7 @@ router.get('/profile', verifyToken, async (req, res) => {
       data: user
     });
   } catch (error) {
-    console.error('[AUTH] Get profile error:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -296,7 +302,7 @@ router.put('/profile', verifyToken, async (req, res) => {
       data: updatedUser
     });
   } catch (error) {
-    console.error('[AUTH] Update profile error:', error);
+    
     res.status(500).json({
       success: false,
       error: {

@@ -1,8 +1,13 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+// [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
+// [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
+
 const express = require('express');
 const { query, getOne, run } = require('../db_mysql');
+const { validateRequestBody } = require('../utils/validation');
 const router = express.Router();
 
-const TABLE_NAME = 'cart_items';
+const TABLE_NAME = 'cart';
 
 async function ensureTableExists() {
   await run(`
@@ -20,7 +25,7 @@ async function ensureTableExists() {
   `);
 }
 
-ensureTableExists().catch(err => console.error('[CART] Failed to ensure table exists:', err));
+ensureTableExists().catch(err => console.error('[Cart] 表创建失败:', err));
 
 router.get('/cart', async (req, res) => {
   try {
@@ -31,7 +36,7 @@ router.get('/cart', async (req, res) => {
     );
     res.json({ success: true, data: items });
   } catch (error) {
-    console.error('[CART] Get cart error:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -72,7 +77,7 @@ router.post('/cart', async (req, res) => {
       res.status(201).json({ success: true, data: newItem, message: 'Item added to cart' });
     }
   } catch (error) {
-    console.error('[CART] Add to cart error:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -120,7 +125,7 @@ router.put('/cart/:id', async (req, res) => {
     );
     res.json({ success: true, data: updatedItem });
   } catch (error) {
-    console.error('[CART] Update cart item error:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -162,7 +167,7 @@ router.put('/cart/batch', async (req, res) => {
     );
     res.json({ success: true, data: allItems });
   } catch (error) {
-    console.error('[CART] Batch update error:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -187,7 +192,7 @@ router.delete('/cart/:id', async (req, res) => {
     );
     res.json({ success: true, data: remainingItems, message: 'Item removed from cart' });
   } catch (error) {
-    console.error('[CART] Delete cart item error:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -201,9 +206,10 @@ router.delete('/cart/batch', async (req, res) => {
       return res.status(400).json({ success: false, message: 'IDs must be a non-empty array' });
     }
 
+    const placeholders = ids.map(() => '?').join(',');
     await run(
-      `DELETE FROM ${TABLE_NAME} WHERE id IN (?) AND user_id = ?`,
-      [ids.join(','), userId]
+      `DELETE FROM ${TABLE_NAME} WHERE id IN (${placeholders}) AND user_id = ?`,
+      [...ids, userId]
     );
 
     const remainingItems = await query(
@@ -212,7 +218,7 @@ router.delete('/cart/batch', async (req, res) => {
     );
     res.json({ success: true, data: remainingItems, message: `${ids.length} items removed` });
   } catch (error) {
-    console.error('[CART] Batch delete error:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -225,7 +231,7 @@ router.delete('/cart', async (req, res) => {
 
     res.json({ success: true, data: [], message: 'Cart cleared' });
   } catch (error) {
-    console.error('[CART] Clear cart error:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -246,7 +252,7 @@ router.put('/cart/select/all', async (req, res) => {
     );
     res.json({ success: true, data: allItems });
   } catch (error) {
-    console.error('[CART] Select all error:', error);
+    
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

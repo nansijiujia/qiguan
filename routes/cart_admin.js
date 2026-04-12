@@ -1,5 +1,7 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
 const express = require('express');
-const { query, getOne, execute } = require('../db_mysql');
+const { query, getOne, execute } = require('../db_mysql')
+const { validateRequestBody } = require('../utils/validation');;
 const { verifyToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
@@ -111,7 +113,7 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[CART_ADMIN] Get carts error:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -171,7 +173,7 @@ router.get('/stats', verifyToken, requireRole('admin'), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[CART_ADMIN] Get stats error:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -221,7 +223,7 @@ router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
       message: '购物车已删除'
     });
   } catch (error) {
-    console.error('[CART_ADMIN] Delete cart error:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -246,7 +248,7 @@ router.delete('/expired', verifyToken, requireRole('admin'), async (req, res) =>
       }
     });
   } catch (error) {
-    console.error('[CART_ADMIN] Clear expired carts error:', error);
+    
     res.status(500).json({
       success: false,
       error: {

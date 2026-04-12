@@ -1,14 +1,24 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { JWT_CONFIG } = require('../config/index');
 
-const DEFAULT_JWT_SECRET = 'qiguan-default-jwt-secret-key-for-development-change-in-production-at-least-32-chars';
-let JWT_SECRET = process.env.JWT_SECRET;
+let JWT_SECRET = JWT_CONFIG.secret;
 
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
-  console.warn('[AUTH WARNING] JWT_SECRET未配置或长度不足32字符，使用默认密钥（仅限开发环境）');
-  JWT_SECRET = DEFAULT_JWT_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    console.error('========================================');
+    console.error('[FATAL] Production environment requires JWT_SECRET');
+    console.error('Please configure JWT_SECRET in .env.production file');
+    console.error('========================================');
+    
+    process.exit(1);
+  } else {
+    console.warn('[WARNING] Using auto-generated JWT secret for development');
+    JWT_SECRET = crypto.randomBytes(64).toString('hex');
+  }
 }
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-const JWT_ALGORITHM = process.env.JWT_ALGORITHM || 'HS256';
+const JWT_EXPIRES_IN = JWT_CONFIG.expiresIn;
+const JWT_ALGORITHM = JWT_CONFIG.algorithm;
 
 function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;

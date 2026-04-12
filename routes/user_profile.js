@@ -1,5 +1,7 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
 const express = require('express');
-const { getOne, query, execute } = require('../db_mysql');
+const { getOne, query, execute } = require('../db_mysql')
+const { validateRequestBody } = require('../utils/validation');;
 const router = express.Router();
 
 // P0 FIX #2: 用户端路由 - 普通登录用户可访问
@@ -24,7 +26,7 @@ router.get('/me', async (req, res) => {
 
     res.json({ success: true, data: user });
   } catch (error) {
-    console.error('[ERROR] Getting user profile:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '获取用户信息失败' } });
   }
 });
@@ -58,7 +60,7 @@ router.put('/me', async (req, res) => {
 
     res.json({ success: true, data: updatedUser, message: '个人信息更新成功' });
   } catch (error) {
-    console.error('[ERROR] Updating user profile:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '更新个人信息失败' } });
   }
 });
@@ -97,7 +99,7 @@ router.get('/favorites', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting favorites:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '获取收藏列表失败' } });
   }
 });
@@ -126,7 +128,7 @@ router.post('/favorites', async (req, res) => {
 
     res.status(201).json({ success: true, data: { id: result.insertId }, message: '收藏成功' });
   } catch (error) {
-    console.error('[ERROR] Adding favorite:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '收藏失败' } });
   }
 });
@@ -143,7 +145,7 @@ router.delete('/favorites/:product_id', async (req, res) => {
 
     res.json({ success: true, message: '取消收藏成功' });
   } catch (error) {
-    console.error('[ERROR] Removing favorite:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '取消收藏失败' } });
   }
 });
@@ -182,7 +184,7 @@ router.get('/footprints', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting footprints:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '获取浏览足迹失败' } });
   }
 });
@@ -215,7 +217,7 @@ router.get('/coupons', async (req, res) => {
 
     res.json({ success: true, data: coupons });
   } catch (error) {
-    console.error('[ERROR] Getting user coupons:', error.message);
+    
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '获取我的优惠券失败' } });
   }
 });

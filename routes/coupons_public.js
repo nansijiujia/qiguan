@@ -1,3 +1,4 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
 const express = require('express');
 const { getOne, query, execute } = require('../db_mysql');
 const router = express.Router();
@@ -65,7 +66,7 @@ router.get('/', async (req, res) => {
       data: formattedList
     });
   } catch (error) {
-    console.error('[ERROR] Getting public coupons:', error.message);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '获取优惠券列表失败' }
@@ -110,7 +111,7 @@ router.get('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting coupon details:', error.message);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '获取优惠券详情失败' }
@@ -201,7 +202,7 @@ router.post('/:id/claim', async (req, res) => {
       message: '优惠券领取成功'
     });
   } catch (error) {
-    console.error('[ERROR] Claiming coupon:', error.message);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '领取优惠券失败' }

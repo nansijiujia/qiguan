@@ -84,6 +84,11 @@ const handleLogin = async () => {
     try {
       const res = await request.post('/v1/auth/login', form)
 
+      console.log('[LOGIN] API Response:', res)
+      console.log('[LOGIN] res.success:', res.success)
+      console.log('[LOGIN] res.data:', res.data)
+      console.log('[LOGIN] res.data?.token:', res.data?.token)
+
       if (res.success && res.data?.token) {
         localStorage.setItem('token', res.data.token)
         localStorage.setItem('user', JSON.stringify(res.data.user))

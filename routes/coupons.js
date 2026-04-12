@@ -1,5 +1,7 @@
+// [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
 const express = require('express');
-const { query, getOne, execute } = require('../db_mysql');
+const { query, getOne, execute } = require('../db_mysql')
+const { validateRequestBody } = require('../utils/validation');;
 const router = express.Router();
 
 function generateCouponCode() {
@@ -86,7 +88,7 @@ router.get('/', async (req, res) => {
       responseTime: Date.now() - startTime
     });
   } catch (error) {
-    console.error('[ERROR] Getting coupons:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -184,7 +186,7 @@ router.post('/', async (req, res) => {
       message: '优惠券创建成功'
     });
   } catch (error) {
-    console.error('[ERROR] Creating coupon:', error);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '创建优惠券失败' }
@@ -215,7 +217,7 @@ router.get('/:id', async (req, res) => {
       data: formatCoupon(coupon)
     });
   } catch (error) {
-    console.error('[ERROR] Getting coupon details:', error);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '获取优惠券详情失败' }
@@ -336,7 +338,7 @@ router.put('/:id', async (req, res) => {
       message: '优惠券更新成功'
     });
   } catch (error) {
-    console.error('[ERROR] Updating coupon:', error);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '更新优惠券失败' }
@@ -368,7 +370,7 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ success: true, message: '优惠券删除成功' });
   } catch (error) {
-    console.error('[ERROR] Deleting coupon:', error);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '删除优惠券失败' }
@@ -429,7 +431,7 @@ router.get('/:id/stats', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting coupon stats:', error);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '获取优惠券统计失败' }
@@ -481,7 +483,7 @@ router.get('/stats/overview', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ERROR] Getting coupons overview:', error);
+    
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: '获取全局统计失败' }

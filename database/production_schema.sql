@@ -18,6 +18,20 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 SET sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
+-- 删除已存在的表（确保Schema完全重建）
+DROP TABLE IF EXISTS `user_coupons`;
+DROP TABLE IF EXISTS `favorites`;
+DROP TABLE IF EXISTS `footprints`;
+DROP TABLE IF EXISTS `cart`;
+DROP TABLE IF EXISTS `order_items`;
+DROP TABLE IF EXISTS `orders`;
+DROP TABLE IF EXISTS `coupons`;
+DROP TABLE IF EXISTS `products`;
+DROP TABLE IF EXISTS `categories`;
+DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `homepage_config`;
+DROP TABLE IF EXISTS `banners`;
+
 -- ============================================================
 -- 1. 分类表 (categories)
 -- 用途: 存储商品分类信息，支持多级分类树形结构
@@ -53,7 +67,7 @@ COMMENT='商品分类表';
 CREATE TABLE IF NOT EXISTS `products` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '商品ID',
     `name` VARCHAR(200) NOT NULL COMMENT '商品名称',
-    `description` TEXT NOT NULL DEFAULT '' COMMENT '商品详细描述 (支持HTML)',
+    `description` TEXT COMMENT '商品详细描述 (支持HTML)',
     `price` DECIMAL(10,2) NOT NULL COMMENT '现价',
     `original_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '原价 (用于显示折扣)',
     `stock` INT NOT NULL DEFAULT 0 COMMENT '库存数量',
@@ -120,7 +134,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
     `total_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '订单总金额',
     `status` ENUM('pending', 'paid', 'shipped', 'completed', 'cancelled') NOT NULL DEFAULT 'pending' COMMENT '订单状态',
     `shipping_address` TEXT DEFAULT NULL COMMENT '收货地址 (JSON或纯文本)',
-    `remark` TEXT NOT NULL DEFAULT '' COMMENT '订单备注',
+    `remark` TEXT COMMENT '订单备注',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
     
