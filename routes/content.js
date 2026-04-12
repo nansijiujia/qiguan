@@ -2,51 +2,37 @@
 // [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
 // [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
 
-// 公共错误处理函数
-function sendErrorResponse(res, statusCode, errorCode, message, error = null) {
-  if (error) {
-    console.error(`[Content] ${message}:`, error.message, error.stack);
-  }
-  return res.status(statusCode).json({
-    success: false,
-    error: {
-      code: errorCode,
-      message: message
-    }
-  });
-}
+const { 
+  validateRequired, 
+  validateString, 
+  validateNumber, 
+  validateId,
+  validateEnum,
+  validateArray,
+  validateUrl,
+  sanitizeString,
+  AppError 
+} = require('../utils/validation');
 
 
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { query, getOne, execute } = require('../db_mysql');
+const { query, getOne, execute } = require('../db_unified');
 const { verifyToken, requireRole } = require('../middleware/auth');
-const { validateRequestBody } = require('../utils/validation');
+const { sendErrorResponse } = require('../utils/errorHandler');
 const router = express.Router();
 
 // 权限验证中间件
 function checkContentPermission(req, res, next) {
   const user = req.user;
   if (!user) {
-    return res.status(401).json({
-      success: false,
-      error: {
-        code: 'UNAUTHORIZED',
-        message: '需要登录才能访问此接口'
-      }
-    });
+    return sendErrorResponse(res, 401, 'UNAUTHORIZED', '需要登录才能访问此接口');
   }
   
   // 检查用户角色是否具有内容管理权限
   if (user.role !== 'admin' && user.role !== 'manager') {
-    return res.status(403).json({
-      success: false,
-      error: {
-        code: 'FORBIDDEN',
-        message: '权限不足，无法执行此操作'
-      }
-    });
+    return sendErrorResponse(res, 403, 'FORBIDDEN', '权限不足，无法执行此操作');
   }
   
   next();
@@ -56,7 +42,7 @@ let multer;
 try {
   multer = require('multer');
 } catch (e) {
-  
+  console.warn('[Content] ⚠️ multer未安装，文件上传功能不可用:', e.message);
 }
 
 const uploadDir = path.join(__dirname, '../uploads/banners');
@@ -97,7 +83,27 @@ if (multer) {
 
 // 1. GET /api/v1/content/banners - 获取Banner列表
 router.get('/banners', async (req, res) => {
-  // 处理逻辑...
+  try {
+    const { status: statusFilter } = req.query;
+    let whereSql = '';
+    let params = [];
+
+    // 验证状态参数（如果提供）
+    if (statusFilter === 'active' || statusFilter === 'inactive') {
+      whereSql = 'WHERE status = ?';
+      params.push(statusFilter);
+    }
+
+    const sql = `SELECT * FROM banners ${whereSql} ORDER BY id ASC`;
+    const banners = await query(sql, params);
+
+    res.json({
+      success: true,
+      data: banners
+    });
+  } catch (error) {
+    return sendErrorResponse(res, 500, 'INTERNAL_ERROR', '获取Banner列表失败', error);
+  }
 });
 
 // 1.1 GET /api/v1/content/homepage/banners - 兼容小程序调用路径
@@ -107,12 +113,13 @@ router.get('/homepage/banners', async (req, res) => {
     let whereSql = '';
     let params = [];
 
+    // 验证状态参数（如果提供）
     if (statusFilter === 'active' || statusFilter === 'inactive') {
       whereSql = 'WHERE status = ?';
       params.push(statusFilter);
     }
 
-    const sql = `SELECT * FROM banners ${whereSql} ORDER BY position ASC, id ASC`;
+    const sql = `SELECT * FROM banners ${whereSql} ORDER BY id ASC`;
     const banners = await query(sql, params);
 
     res.json({
@@ -120,14 +127,8 @@ router.get('/homepage/banners', async (req, res) => {
       data: banners
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取Banner列表失败'
-      }
-    });
+    console.error('[Content/HomepageBanners] ❌ 获取Banner列表失败:', error.message);
+    return sendErrorResponse(res, error, 'Content/HomepageBanners');
   }
 });
 
@@ -136,14 +137,33 @@ router.post('/banners', verifyToken, checkContentPermission, async (req, res) =>
   try {
     const { title, image_url, link_url, link_type, position, start_time, end_time } = req.body;
 
-    if (!image_url) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '图片URL不能为空'
-        }
-      });
+    // 输入验证
+    validateRequired(['image_url'], req.body);
+    
+    // 验证图片URL
+    if (image_url) {
+      validateString(image_url, '图片URL', { min: 5, max: 500 });
+    }
+    
+    // 验证标题（如果提供）
+    if (title) {
+      validateString(title, '标题', { max: 100, required: false });
+    }
+    
+    // 验证链接URL（如果提供）
+    if (link_url) {
+      validateUrl(link_url);
+    }
+    
+    // 验证链接类型（如果提供）
+    if (link_type) {
+      const validLinkTypes = ['product', 'category', 'url', 'none'];
+      validateEnum(link_type, validLinkTypes, '链接类型');
+    }
+    
+    // 验证位置（如果提供）
+    if (position !== undefined) {
+      validateNumber(position, '排序位置', { min: 0, integer: true });
     }
 
     let finalPosition = position;
@@ -158,7 +178,7 @@ router.post('/banners', verifyToken, checkContentPermission, async (req, res) =>
     const sql = `INSERT INTO banners (title, image_url, link_url, link_type, position, start_time, end_time, status)
                  VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`;
     const result = await execute(sql, [
-      title || '',
+      title ? sanitizeString(title) : '',
       image_url,
       link_url || null,
       finalLinkType,
@@ -182,14 +202,8 @@ router.post('/banners', verifyToken, checkContentPermission, async (req, res) =>
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '创建Banner失败'
-      }
-    });
+    console.error('[Content/CreateBanner] ❌ 创建Banner失败:', error.message);
+    return sendErrorResponse(res, error, 'Content/CreateBanner');
   }
 });
 
@@ -199,18 +213,27 @@ router.put('/banners/:id', verifyToken, checkContentPermission, async (req, res)
     const { id } = req.params;
     const { title, image_url, link_url, link_type, position, status, start_time, end_time } = req.body;
 
+    // 验证ID
+    const bannerId = validateId(id, 'Banner ID');
+
     const fields = [];
     const params = [];
 
+    // 字段级别验证
     if (title !== undefined) {
+      validateString(title, '标题', { max: 100 });
       fields.push('title = ?');
-      params.push(title);
+      params.push(sanitizeString(title));
     }
     if (image_url !== undefined) {
+      validateString(image_url, '图片URL', { min: 5, max: 500 });
       fields.push('image_url = ?');
       params.push(image_url);
     }
     if (link_url !== undefined) {
+      if (link_url) {
+        validateUrl(link_url);
+      }
       fields.push('link_url = ?');
       params.push(link_url);
     }
@@ -219,13 +242,18 @@ router.put('/banners/:id', verifyToken, checkContentPermission, async (req, res)
       if (validLinkTypes.includes(link_type)) {
         fields.push('link_type = ?');
         params.push(link_type);
+      } else {
+        throw new AppError('链接类型必须是以下值之一: product, category, url, none', 400, 'INVALID_ENUM');
       }
     }
     if (position !== undefined) {
+      validateNumber(position, '排序位置', { min: 0, integer: true });
       fields.push('position = ?');
       params.push(position);
     }
-    if (status !== undefined && (status === 'active' || status === 'inactive')) {
+    if (status !== undefined) {
+      const validStatuses = ['active', 'inactive'];
+      validateEnum(status, validStatuses, '状态');
       fields.push('status = ?');
       params.push(status);
     }
@@ -239,43 +267,25 @@ router.put('/banners/:id', verifyToken, checkContentPermission, async (req, res)
     }
 
     if (fields.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '没有提供需要更新的字段'
-        }
-      });
+      throw new AppError('没有提供需要更新的字段', 400, 'VALIDATION_ERROR');
     }
 
-    params.push(id);
+    params.push(bannerId);
     const sql = `UPDATE banners SET ${fields.join(', ')} WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Banner不存在'
-        }
-      });
+      throw new AppError('Banner不存在', 404, 'NOT_FOUND');
     }
 
     res.json({
       success: true,
       message: 'Banner更新成功',
-      data: { id }
+      data: { id: bannerId }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '更新Banner失败'
-      }
-    });
+    console.error('[Content/UpdateBanner] ❌ 更新Banner失败:', error.message);
+    return sendErrorResponse(res, error, 'Content/UpdateBanner');
   }
 });
 
@@ -283,28 +293,20 @@ router.put('/banners/:id', verifyToken, checkContentPermission, async (req, res)
 router.delete('/banners/:id', verifyToken, checkContentPermission, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await execute('DELETE FROM banners WHERE id = ?', [id]);
+    
+    // 验证ID
+    const bannerId = validateId(id, 'Banner ID');
+
+    const result = await execute('DELETE FROM banners WHERE id = ?', [bannerId]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Banner不存在'
-        }
-      });
+      throw new AppError('Banner不存在', 404, 'NOT_FOUND');
     }
 
     res.json({ success: true, message: 'Banner删除成功' });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '删除Banner失败'
-      }
-    });
+    console.error('[Content/DeleteBanner] ❌ 删除Banner失败:', error.message);
+    return sendErrorResponse(res, error, 'Content/DeleteBanner');
   }
 });
 
@@ -313,33 +315,27 @@ router.put('/banners/reorder', verifyToken, checkContentPermission, async (req, 
   try {
     const { orders } = req.body;
 
-    if (!Array.isArray(orders) || orders.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '请提供有效的排序数据'
-        }
-      });
-    }
+    // 验证订单数组
+    validateArray(orders, '排序数据', { required: true, minLength: 1 });
 
-    for (const item of orders) {
+    for (let i = 0; i < orders.length; i++) {
+      const item = orders[i];
+      
       if (item.id === undefined || item.position === undefined) {
         continue;
       }
+      
+      // 验证每项的ID和位置
+      validateId(item.id, `排序项${i + 1}的ID`);
+      validateNumber(item.position, `排序项${i + 1}的位置`, { min: 0, integer: true });
+      
       await execute('UPDATE banners SET position = ? WHERE id = ?', [item.position, item.id]);
     }
 
     res.json({ success: true, message: '排序更新成功' });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '调整排序失败'
-      }
-    });
+    console.error('[Content/ReorderBanners] ❌ 调整排序失败:', error.message);
+    return sendErrorResponse(res, error, 'Content/ReorderBanners');
   }
 });
 
@@ -365,14 +361,8 @@ router.get('/homepage/config', async (req, res) => {
       data: configObj
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取首页配置失败'
-      }
-    });
+    console.error('[Content/GetHomepageConfig] ❌ 获取首页配置失败:', error.message);
+    return sendErrorResponse(res, error, 'Content/GetHomepageConfig');
   }
 });
 
@@ -381,18 +371,24 @@ router.put('/homepage/config', async (req, res) => {
   try {
     const updates = req.body;
 
+    // 验证输入
     if (!updates || typeof updates !== 'object' || Object.keys(updates).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '请提供需要更新的配置项'
-        }
-      });
+      throw new AppError('请提供需要更新的配置项', 400, 'VALIDATION_ERROR');
+    }
+
+    // 验证每个配置键的长度
+    for (const key of Object.keys(updates)) {
+      validateString(key, '配置键', { min: 1, max: 50 });
     }
 
     for (const [key, value] of Object.entries(updates)) {
       const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+      
+      // 验证配置值的长度
+      if (stringValue.length > 2000) {
+        throw new AppError(`配置项"${key}"的值过长`, 400, 'INVALID_LENGTH');
+      }
+      
       const existing = await getOne('SELECT id FROM homepage_config WHERE config_key = ?', [key]);
 
       if (existing) {
@@ -410,14 +406,8 @@ router.put('/homepage/config', async (req, res) => {
 
     res.json({ success: true, message: '配置更新成功' });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '更新首页配置失败'
-      }
-    });
+    console.error('[Content/UpdateHomepageConfig] ❌ 更新首页配置失败:', error.message);
+    return sendErrorResponse(res, error, 'Content/UpdateHomepageConfig');
   }
 });
 
@@ -484,14 +474,8 @@ router.get('/homepage/preview', async (req, res) => {
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取预览数据失败'
-      }
-    });
+    console.error('[Content/Preview] ❌ 获取预览数据失败:', error.message);
+    return sendErrorResponse(res, error, 'Content/Preview');
   }
 });
 
@@ -504,13 +488,7 @@ if (upload) {
   router.post('/upload', verifyToken, checkContentPermission, upload.single('file'), (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            code: 'NO_FILE',
-            message: '请选择要上传的图片'
-          }
-        });
+        return sendErrorResponse(res, 400, 'NO_FILE', '请选择要上传的图片');
       }
 
       const fileUrl = `/uploads/banners/${req.file.filename}`;
@@ -527,14 +505,7 @@ if (upload) {
       });
     } catch (error) {
       console.error('[Content] 文件上传失败:', error.message, error.stack);
-      
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'UPLOAD_ERROR',
-          message: '文件上传失败'
-        }
-      });
+      return sendErrorResponse(res, 500, 'UPLOAD_ERROR', '文件上传失败', error);
     }
   });
 } else {

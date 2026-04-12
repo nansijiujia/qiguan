@@ -1,6 +1,6 @@
 // [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
 const express = require('express');
-const { getOne, query, execute } = require('../db_mysql');
+const { getOne, query, execute } = require('../db_unified');
 const router = express.Router();
 
 // P0 FIX #3: 优惠券用户端路由 - 普通登录用户可访问

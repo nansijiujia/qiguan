@@ -6,34 +6,35 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const http = require('http');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const { verifyToken, requireRole } = require('./middleware/auth');
 const { CORS_CONFIG } = require('./config/domain');
+const { AppError, sendErrorResponse } = require('./utils/errorHandler');
 
-// 强制使用云MySQL数据库，不支持本地SQLite
-const dbType = process.env.DB_TYPE || 'mysql';
+// 使用统一的数据库模块
+const dbType = process.env.DB_TYPE || 'sqlite';
+const db = require('./db_unified');
 
-if (dbType !== 'mysql') {
-  console.error('[FATAL] DB_TYPE must be "mysql" for production. Current:', dbType);
-  console.error('[FATAL] Local SQLite database is deprecated. Please configure cloud database.');
-  process.exit(1);
+if (dbType === 'sqlite') {
+  console.log('[DEV] Using local SQLite database for testing');
+} else {
+  db.initPool()
+    .then(() => {
+      console.log('[MySQL/TDSQL-C] ✅ Connected to cloud database successfully');
+      console.log(`[MySQL/TDSQL-C] Host: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
+      console.log(`[MySQL/TDSQL-C] Database: ${process.env.DB_NAME}`);
+    })
+    .catch(err => {
+      console.error('[FATAL] Cloud database connection failed:', err.message);
+      console.error('[FATAL] Cannot start without database. Exiting...');
+      process.exit(1);
+    });
 }
-
-let db = require('./db_mysql');
-
-db.initPool()
-  .then(() => {
-    console.log('[MySQL/TDSQL-C] ✅ Connected to cloud database successfully');
-    console.log(`[MySQL/TDSQL-C] Host: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
-    console.log(`[MySQL/TDSQL-C] Database: ${process.env.DB_NAME}`);
-  })
-  .catch(err => {
-    console.error('[FATAL] Cloud database connection failed:', err.message);
-    console.error('[FATAL] Cannot start without database. Exiting...');
-    process.exit(1);
-  });
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -42,21 +43,91 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors(CORS_CONFIG));
 
+// Helmet安全头部配置
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      fontSrc: ["'self'", "data:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://admin.qimengzhiyue.cn", "https://qimengzhiyue.cn"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  frameguard: { action: 'deny' },
+  xssFilter: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
+
+// Rate Limiting限流配置
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMITED',
+      message: '登录尝试过于频繁，请1分钟后重试',
+      retryAfter: 60
+    }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMITED',
+      message: '请求过于频繁，请稍后再试'
+    }
+  }
+});
+
+// CSRF防护配置（可选：对于Bearer Token认证的系统可禁用）
+// 如果使用Cookie-based session，请取消下面的注释
+/*
+const csrf = require('csurf');
+const csrfProtection = csrf({ cookie: true });
+
+// 为需要CSRF保护的路由启用
+app.use('/api/v1', csrfProtection);
+
+// 提供CSRF token给前端
+app.get('/api/v1/csrf-token', (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+*/
+
+// 静态文件服务 - 提供前端构建产物
+app.use(express.static(path.join(__dirname, 'dist')));
+console.log('[Static] Serving static files from:', path.join(__dirname, 'dist'));
+
 app.options('*', (req, res) => res.status(200).send());
 
 const routes = [
-  { path: '/auth', module: './routes/auth' },
-  { path: '/categories', module: './routes/categories', middleware: [verifyToken] },
-  { path: '/products', module: './routes/products', middleware: [verifyToken] },
-  { path: '/dashboard', module: './routes/dashboard', middleware: [verifyToken] },
-  { path: '/orders', module: './routes/orders', middleware: [verifyToken] },
-  { path: '/admin/users', module: './routes/users', middleware: [verifyToken, requireRole('admin')] },
-  { path: '/users', module: './routes/user_profile', middleware: [verifyToken] },
-  { path: '/cart', module: './routes/cart', middleware: [verifyToken] },
-  { path: '/content', module: './routes/content', middleware: [verifyToken] },
+  { path: '/auth', module: './routes/auth', middleware: [loginLimiter] },
+  { path: '/categories', module: './routes/categories', middleware: [apiLimiter, verifyToken] },
+  { path: '/products', module: './routes/products', middleware: [apiLimiter, verifyToken] },
+  { path: '/dashboard', module: './routes/dashboard', middleware: [apiLimiter, verifyToken] },
+  { path: '/orders', module: './routes/orders', middleware: [apiLimiter, verifyToken] },
+  { path: '/admin/users', module: './routes/users', middleware: [apiLimiter, verifyToken, requireRole('admin')] },
+  { path: '/users', module: './routes/user_profile', middleware: [apiLimiter, verifyToken] },
+  { path: '/cart', module: './routes/cart', middleware: [apiLimiter, verifyToken] },
+  { path: '/content', module: './routes/content' },
   { path: '/search', module: './routes/search' },
-  { path: '/admin/coupons', module: './routes/coupons', middleware: [verifyToken, requireRole('admin')] },
-  { path: '/coupons', module: './routes/coupons_public', middleware: [verifyToken] },
+  { path: '/admin/coupons', module: './routes/coupons', middleware: [apiLimiter, verifyToken, requireRole('admin')] },
+  { path: '/coupons', module: './routes/coupons_public', middleware: [apiLimiter, verifyToken] },
   { path: '/health', module: './routes/health' }
 ];
 
@@ -84,41 +155,41 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customSiteTitle: '绮管后台 API 文档'
 }));
 
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    service: 'E-commerce Backend API',
-    version: '1.0.0',
-    status: 'running',
-    timestamp: new Date().toISOString()
-  });
+// 前端路由支持 - 所有非API请求都返回index.html (SPA)
+app.get('*', (req, res) => {
+  // 如果是API请求，返回标准化的404响应
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: `接口 ${req.method} ${req.path} 不存在`,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  // 否则返回前端index.html
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    database: !!db?.db,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
-});
-
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Not Found',
-    message: `${req.method} ${req.path}`,
-    timestamp: new Date().toISOString()
-  });
-});
-
+// 全局错误处理中间件（放在所有路由之后）
 app.use((err, req, res, next) => {
-  console.error('[ERROR]', err.message);
-  res.status(err.status || 500).json({
+  if (err instanceof AppError) {
+    return sendErrorResponse(res, err, 'GlobalMiddleware');
+  }
+
+  // 未知错误
+  console.error('[UNEXPECTED ERROR]', err.stack);
+  return res.status(500).json({
     success: false,
-    error: 'Internal Server Error',
-    message: err.message,
-    timestamp: new Date().toISOString()
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: process.env.NODE_ENV === 'production'
+        ? '服务器内部错误'
+        : err.message,
+      timestamp: new Date().toISOString()
+    }
   });
 });
 

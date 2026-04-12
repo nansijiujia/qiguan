@@ -1,7 +1,19 @@
 // [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+const { 
+  validateRequired, 
+  validateString, 
+  validateNumber, 
+  validateId,
+  validateEnum,
+  validatePagination,
+  sanitizeString,
+  sanitizeInput,
+  AppError 
+} = require('../utils/validation');
+
 const express = require('express');
-const { query, getOne, execute } = require('../db_mysql');
-const { validateRequestBody, sanitizeInput, isSafeSqlInput } = require('../utils/validation');
+const { query, getOne, execute } = require('../db_unified');
+const { requirePermission } = require('../middleware/rbac');
 const router = express.Router();
 
 function escapeHtml(text) {
@@ -31,8 +43,11 @@ function formatProduct(product) {
 
 router.get('/', async (req, res) => {
   try {
+    // 验证分页参数
+    const { page, limit, offset } = validatePagination(req);
+
     // 简化版本：直接查询所有商品
-    const list = await query('SELECT * FROM products ORDER BY created_at DESC LIMIT 20');
+    const list = await query('SELECT * FROM products ORDER BY created_at DESC LIMIT ?', [limit]);
     const total = Array.isArray(list) ? list.length : 0;
     
     const formattedList = list.map(formatProduct);
@@ -43,22 +58,14 @@ router.get('/', async (req, res) => {
         list: formattedList,
         pagination: {
           total: total,
-          totalPages: 1,
-          page: 1,
-          limit: 20
+          totalPages: Math.ceil(total / limit),
+          page,
+          limit
         }
       }
     });
   } catch (error) {
-    console.error('[Products] 获取商品列表失败:', error.message, error.stack);
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取商品列表失败'
-      }
-    });
+    return sendErrorResponse(res, error, 'PRODUCTS/LIST');
   }
 });
 
@@ -66,7 +73,14 @@ router.get('/', async (req, res) => {
 router.get('/recommended', async (req, res) => {
   try {
     const { limit = 10, user_id } = req.query;
-    const limitNum = Math.min(parseInt(limit), 50);
+    
+    // 验证limit参数
+    const limitNum = Math.min(Math.max(1, parseInt(limit) || 10), 50);
+    
+    // 如果提供user_id，验证其格式
+    if (user_id) {
+      validateId(user_id, '用户ID');
+    }
 
     let products;
     if (user_id) {
@@ -116,22 +130,14 @@ router.get('/recommended', async (req, res) => {
       data: products.map(formatProduct)
     });
   } catch (error) {
-    console.error('[Products] 获取推荐商品失败:', error.message, error.stack);
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取推荐商品失败'
-      }
-    });
+    return sendErrorResponse(res, error, 'PRODUCTS/RECOMMENDED');
   }
 });
 
 router.get('/hot', async (req, res) => {
   try {
     const { limit = 5 } = req.query;
-    const limitNum = Math.min(parseInt(limit), 20);
+    const limitNum = Math.min(Math.max(1, parseInt(limit) || 5), 20);
 
     const sql = `SELECT p.id, p.name, p.price, p.image,
                  COALESCE(SUM(oi.quantity), 0) as sales_count
@@ -155,15 +161,7 @@ router.get('/hot', async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('[Products] 获取热门商品失败:', error.message, error.stack);
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取热门商品失败'
-      }
-    });
+    return sendErrorResponse(res, error, 'PRODUCTS/HOT');
   }
 });
 
@@ -175,9 +173,10 @@ router.get('/search', async (req, res) => {
       return res.json({ success: true, data: [], pagination: { total: 0, totalPages: 0, page: 1, limit: 20 } });
     }
 
-    const pageNum = parseInt(page) || 1;
-    const limitNum = Math.min(parseInt(limit) || 20, 100);
-    const offset = (pageNum - 1) * limitNum;
+    // 验证搜索关键词长度
+    validateString(q, '搜索关键词', { min: 1, max: 100, required: false });
+
+    const { page: pageNum, limit: limitNum, offset } = validatePagination(req);
     const shouldHighlight = highlight === 'true';
 
     const searchParam = `%${q}%`;
@@ -218,17 +217,10 @@ router.get('/search', async (req, res) => {
         page: pageNum,
         limit: limitNum
       },
-      searchQuery: q
+      searchQuery: sanitizeString(q)
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '搜索商品失败'
-      }
-    });
+    return sendErrorResponse(res, error, 'PRODUCTS/SEARCH');
   }
 });
 
@@ -240,79 +232,59 @@ router.get('/suggestions', async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
+    // 验证关键词长度
+    validateString(keyword, '搜索关键词', { min: 1, max: 50, required: false });
+
     const likePattern = `${keyword}%`;
     const sql = `SELECT name FROM products WHERE status = ? AND name LIKE ? LIMIT 10`;
     const rows = await query(sql, ['active', likePattern]);
     const suggestions = rows.map(p => p.name);
     res.json({ success: true, data: suggestions });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取搜索建议失败'
-      }
-    });
+    return sendErrorResponse(res, error, 'PRODUCTS/SUGGESTIONS');
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('products', 'create'), async (req, res) => {
   try {
     const { name, description, price, stock, category_id, image, status } = req.body;
 
-    // 使用新的验证工具进行严格验证
-    const validationRules = {
-      name: {
-        required: true,
-        string: true,
-        minLength: 1,
-        maxLength: 200,
-        fieldName: '商品名称'
-      },
-      description: {
-        string: true,
-        maxLength: 2000,
-        fieldName: '商品描述'
-      },
-      price: {
-        number: true,
-        minValue: 0,
-        maxValue: 999999.99,
-        fieldName: '价格'
-      },
-      stock: {
-        number: true,
-        minValue: 0,
-        maxValue: 99999,
-        fieldName: '库存'
-      },
-      status: {
-        enum: ['active', 'inactive'],
-        fieldName: '状态'
-      }
-    };
-
-    const validation = validateRequestBody(req.body, validationRules);
-    if (!validation.valid) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: validation.errors[0]
-        }
-      });
+    // 输入验证
+    validateRequired(['name', 'price'], req.body);
+    validateString(name, '商品名称', { min: 2, max: 100 });
+    validateNumber(price, '价格', { min: 0.01, max: 999999.99 });
+    validateNumber(stock, '库存', { min: 0, integer: true, required: false });
+    
+    if (category_id !== undefined && category_id !== null) {
+      validateId(category_id, '分类ID');
     }
+    
+    validateString(description, '描述', { max: 2000, required: false });
+    
+    if (status) {
+      validateEnum(status, ['active', 'inactive', 'draft'], '状态');
+    }
+
+    // XSS防护
+    const sanitizedData = {
+      name: sanitizeString(name),
+      price: Number(price),
+      stock: stock !== undefined ? parseInt(stock) : 0,
+      category_id: category_id || null,
+      description: sanitizeString(description || ''),
+      image: image || null,
+      status: status || 'active'
+    };
 
     const sql = `INSERT INTO products (name, description, price, stock, category_id, image, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
     const result = await execute(sql, [
-      name,
-      description || null,
-      price || 0,
-      stock || 0,
-      category_id || null,
-      image || null,
-      status || 'active'
+      sanitizedData.name,
+      sanitizedData.description || null,
+      sanitizedData.price,
+      sanitizedData.stock,
+      sanitizedData.category_id,
+      sanitizedData.image,
+      sanitizedData.status
     ]);
 
     const insertId = result.insertId;
@@ -320,52 +292,52 @@ router.post('/', async (req, res) => {
       success: true,
       data: {
         id: insertId,
-        name,
-        description: description || null,
-        price: price || 0,
-        stock: stock || 0,
-        category_id: category_id || null,
-        image: image || null,
-        status: status || 'active'
+        ...sanitizedData
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '创建商品失败'
-      }
-    });
+    console.error('[Products/Create] ❌ 创建商品失败:', error.message);
+    return sendErrorResponse(res, error, 'Products/Create');
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('products', 'update'), async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 验证ID
+    const productId = validateId(id, '商品ID');
+    
     const { name, description, price, stock, category_id, image, status } = req.body;
 
     const fields = [];
     const params = [];
 
+    // 字段级别验证
     if (name !== undefined) {
+      validateString(name, '商品名称', { min: 2, max: 100 });
       fields.push('name = ?');
-      params.push(name);
+      params.push(sanitizeString(name));
     }
     if (description !== undefined) {
+      validateString(description, '描述', { max: 2000 });
       fields.push('description = ?');
-      params.push(description);
+      params.push(sanitizeString(description));
     }
     if (price !== undefined) {
+      validateNumber(price, '价格', { min: 0.01, max: 999999.99 });
       fields.push('price = ?');
-      params.push(price);
+      params.push(Number(price));
     }
     if (stock !== undefined) {
+      validateNumber(stock, '库存', { min: 0, integer: true });
       fields.push('stock = ?');
-      params.push(stock);
+      params.push(parseInt(stock));
     }
     if (category_id !== undefined) {
+      if (category_id !== null) {
+        validateId(category_id, '分类ID');
+      }
       fields.push('category_id = ?');
       params.push(category_id);
     }
@@ -374,84 +346,63 @@ router.put('/:id', async (req, res) => {
       params.push(image);
     }
     if (status !== undefined) {
+      validateEnum(status, ['active', 'inactive', 'draft'], '状态');
       fields.push('status = ?');
       params.push(status);
     }
 
     if (fields.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '没有提供需要更新的字段'
-        }
-      });
+      throw new AppError('没有提供需要更新的字段', 400, 'VALIDATION_ERROR');
     }
 
-    params.push(id);
+    params.push(productId);
     const sql = `UPDATE products SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: '商品不存在'
-        }
-      });
+      throw new AppError('商品不存在', 404, 'NOT_FOUND');
     }
 
     res.json({
       success: true,
-      data: { id, name, description, price, stock, category_id, image, status }
+      data: { id: productId, name, description, price, stock, category_id, image, status }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '更新商品失败'
-      }
-    });
+    console.error('[Products/Update] ❌ 更新商品失败:', error.message);
+    return sendErrorResponse(res, error, 'Products/Update');
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('products', 'delete'), async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await execute('DELETE FROM products WHERE id = ?', [id]);
+    
+    // 验证ID
+    const productId = validateId(id, '商品ID');
+    
+    const result = await execute('DELETE FROM products WHERE id = ?', [productId]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: '商品不存在'
-        }
-      });
+      throw new AppError('商品不存在', 404, 'NOT_FOUND');
     }
 
     res.json({ success: true, message: '商品删除成功' });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '删除商品失败'
-      }
-    });
+    console.error('[Products/Delete] ❌ 删除商品失败:', error.message);
+    return sendErrorResponse(res, error, 'Products/Delete');
   }
 });
 
 router.get('/category/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 验证分类ID
+    const categoryId = validateId(id, '分类ID');
+    
     const { page = 1, limit = 10 } = req.query;
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
     const offset = (pageNum - 1) * limitNum;
 
     const sql = `SELECT p.*, c.name as category_name
@@ -460,10 +411,10 @@ router.get('/category/:id', async (req, res) => {
                  WHERE p.status = ? AND p.category_id = ?
                  ORDER BY p.created_at DESC
                  LIMIT ? OFFSET ?`;
-    const list = await query(sql, ['active', id, limitNum, offset]);
+    const list = await query(sql, ['active', categoryId, limitNum, offset]);
 
     const countSql = `SELECT COUNT(*) AS total FROM products WHERE status = ? AND category_id = ?`;
-    const countResult = await getOne(countSql, ['active', id]);
+    const countResult = await getOne(countSql, ['active', categoryId]);
     const total = countResult ? countResult.total : 0;
     const totalPages = Math.ceil(total / limitNum);
 
@@ -478,14 +429,8 @@ router.get('/category/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取分类下商品列表失败'
-      }
-    });
+    console.error('[Products/Category] ❌ 获取分类下商品失败:', error.message);
+    return sendErrorResponse(res, error, 'Products/Category');
   }
 });
 
@@ -493,21 +438,18 @@ router.get('/category/:id', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 验证ID
+    const productId = validateId(id, '商品ID');
 
     const sql = `SELECT p.*, c.name as category_name
                  FROM products p
                  LEFT JOIN categories c ON p.category_id = c.id
                  WHERE p.id = ?`;
-    const product = await getOne(sql, [id]);
+    const product = await getOne(sql, [productId]);
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: '商品不存在'
-        }
-      });
+      throw new AppError('商品不存在', 404, 'NOT_FOUND');
     }
 
     const formattedProduct = formatProduct(product);
@@ -519,7 +461,7 @@ router.get('/:id', async (req, res) => {
                           WHERE p.category_id = ? AND p.id != ? AND p.status = ?
                           ORDER BY p.created_at DESC
                           LIMIT 5`;
-      const similarProducts = await query(similarSql, [product.category_id, id, 'active']);
+      const similarProducts = await query(similarSql, [product.category_id, productId, 'active']);
       formattedProduct.similar_products = similarProducts.map(formatProduct);
     } else {
       formattedProduct.similar_products = [];
@@ -530,14 +472,8 @@ router.get('/:id', async (req, res) => {
       data: formattedProduct
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取商品详情失败'
-      }
-    });
+    console.error('[Products/Detail] ❌ 获取商品详情失败:', error.message);
+    return sendErrorResponse(res, error, 'Products/Detail');
   }
 });
 

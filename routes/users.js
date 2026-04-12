@@ -1,26 +1,52 @@
 // [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+const { 
+  validateRequired, 
+  validateString, 
+  validateNumber, 
+  validateId,
+  validateEnum,
+  validateEmail,
+  validatePhone,
+  validatePagination,
+  sanitizeString,
+  AppError 
+} = require('../utils/validation');
+
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { query, getOne, execute } = require('../db_mysql')
-const { validateRequestBody } = require('../utils/validation');;
+const { query, getOne, execute } = require('../db_unified');
+const { sendErrorResponse } = require('../utils/errorHandler');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10, role, status, keyword } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // 验证分页参数
+    const { page: pageNum, limit: limitNum, offset } = validatePagination(req);
+
     const params = [];
     let whereSql = 'WHERE 1=1';
 
+    // 验证角色参数（如果提供）
     if (role) {
+      const validRoles = ['admin', 'manager', 'user'];
+      validateEnum(role, validRoles, '角色');
       whereSql += ' AND role = ?';
       params.push(role);
     }
+    
+    // 验证状态参数（如果提供）
     if (status) {
+      const validStatuses = ['active', 'inactive', 'banned'];
+      validateEnum(status, validStatuses, '用户状态');
       whereSql += ' AND status = ?';
       params.push(status);
     }
+    
+    // 验证搜索关键词（如果提供）
     if (keyword) {
+      validateString(keyword, '搜索关键词', { min: 1, max: 50, required: false });
       whereSql += ' AND (username LIKE ? OR email LIKE ?)';
       const kw = `%${keyword}%`;
       params.push(kw, kw);
@@ -32,7 +58,7 @@ router.get('/', async (req, res) => {
        FROM users ${whereSql}
        ORDER BY created_at DESC
        LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+      [...params, limitNum, offset]
     );
 
     res.json({
@@ -40,15 +66,15 @@ router.get('/', async (req, res) => {
       data: {
         list,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page: pageNum,
+          limit: limitNum,
           total: countResult.total || 0
         }
       }
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to get users' } });
+    console.error('[Users/List] ❌ 获取用户列表失败:', error.message);
+    return sendErrorResponse(res, error, 'Users/List');
   }
 });
 
@@ -56,27 +82,40 @@ router.post('/', async (req, res) => {
   try {
     const { username, email, password, avatar, role, status } = req.body;
 
-    if (!username || !email || !password) {
-      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Username, email and password are required' } });
+    // 输入验证
+    validateRequired(['username', 'email', 'password'], req.body);
+    
+    validateString(username, '用户名', { min: 3, max: 20, pattern: /^[a-zA-Z0-9_]+$/ });
+    validateEmail(email);
+    validateString(password, '密码', { min: 6, max: 128 });
+
+    // 验证角色（如果提供）
+    if (role) {
+      validateEnum(role, ['admin', 'manager', 'user'], '角色');
+    }
+
+    // 验证状态（如果提供）
+    if (status) {
+      validateEnum(status, ['active', 'inactive', 'banned'], '用户状态');
     }
 
     const existing = await getOne('SELECT id FROM users WHERE username = ? OR email = ?', [username, email]);
     if (existing) {
-      return res.status(409).json({ success: false, error: { code: 'DUPLICATE_ERROR', message: 'Username or email already exists' } });
+      throw new AppError('用户名或邮箱已存在', 409, 'DUPLICATE_ERROR');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await execute(
       `INSERT INTO users (username, email, password, avatar, role, status)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [username, email, passwordHash, avatar || null, role || 'user', status || 'active']
+      [sanitizeString(username), email, passwordHash, avatar || null, role || 'user', status || 'active']
     );
 
     const newUser = await getOne('SELECT id, username, email, avatar, role, status, created_at FROM users WHERE id = ?', [result.insertId]);
     res.status(201).json({ success: true, data: newUser });
   } catch (error) {
-    
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create user' } });
+    console.error('[Users/Create] ❌ 创建用户失败:', error.message);
+    return sendErrorResponse(res, error, 'Users/Create');
   }
 });
 
@@ -85,53 +124,86 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { username, email, password, avatar, role, status } = req.body;
 
-    const user = await getOne('SELECT id FROM users WHERE id = ?', [id]);
+    // 验证ID
+    const userId = validateId(id, '用户ID');
+
+    const user = await getOne('SELECT id FROM users WHERE id = ?', [userId]);
     if (!user) {
-      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } });
+      throw new AppError('用户不存在', 404, 'NOT_FOUND');
     }
 
     const fields = [];
     const values = [];
 
-    if (username !== undefined) { fields.push('username = ?'); values.push(username); }
-    if (email !== undefined) { fields.push('email = ?'); values.push(email); }
+    // 字段级别验证
+    if (username !== undefined) {
+      validateString(username, '用户名', { min: 3, max: 20, pattern: /^[a-zA-Z0-9_]+$/ });
+      fields.push('username = ?');
+      values.push(sanitizeString(username));
+    }
+    
+    if (email !== undefined) {
+      validateEmail(email);
+      fields.push('email = ?');
+      values.push(email);
+    }
+    
     if (password !== undefined) {
+      validateString(password, '密码', { min: 6, max: 128 });
       const hash = await bcrypt.hash(password, 10);
       fields.push('password = ?');
       values.push(hash);
     }
-    if (avatar !== undefined) { fields.push('avatar = ?'); values.push(avatar); }
-    if (role !== undefined) { fields.push('role = ?'); values.push(role); }
-    if (status !== undefined) { fields.push('status = ?'); values.push(status); }
-
-    if (fields.length === 0) {
-      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'No fields to update' } });
+    
+    if (avatar !== undefined) {
+      fields.push('avatar = ?');
+      values.push(avatar);
+    }
+    
+    if (role !== undefined) {
+      validateEnum(role, ['admin', 'manager', 'user'], '角色');
+      fields.push('role = ?');
+      values.push(role);
+    }
+    
+    if (status !== undefined) {
+      validateEnum(status, ['active', 'inactive', 'banned'], '用户状态');
+      fields.push('status = ?');
+      values.push(status);
     }
 
-    values.push(id);
-    await execute(`UPDATE users SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ?`, values);
+    if (fields.length === 0) {
+      throw new AppError('没有需要更新的字段', 400, 'VALIDATION_ERROR');
+    }
 
-    const updatedUser = await getOne('SELECT id, username, email, avatar, role, status, last_login, created_at FROM users WHERE id = ?', [id]);
+    values.push(userId);
+    await execute(`UPDATE users SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`, values);
+
+    const updatedUser = await getOne('SELECT id, username, email, avatar, role, status, last_login, created_at FROM users WHERE id = ?', [userId]);
     res.json({ success: true, data: updatedUser });
   } catch (error) {
-    
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update user' } });
+    console.error('[Users/Update] ❌ 更新用户失败:', error.message);
+    return sendErrorResponse(res, error, 'Users/Update');
   }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await getOne('SELECT id FROM users WHERE id = ?', [id]);
+    
+    // 验证ID
+    const userId = validateId(id, '用户ID');
+
+    const user = await getOne('SELECT id FROM users WHERE id = ?', [userId]);
     if (!user) {
-      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } });
+      throw new AppError('用户不存在', 404, 'NOT_FOUND');
     }
 
-    await execute('DELETE FROM users WHERE id = ?', [id]);
+    await execute('DELETE FROM users WHERE id = ?', [userId]);
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
-    
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to delete user' } });
+    console.error('[Users/Delete] ❌ 删除用户失败:', error.message);
+    return sendErrorResponse(res, error, 'Users/Delete');
   }
 });
 

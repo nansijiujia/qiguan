@@ -58,7 +58,7 @@ service.interceptors.response.use(
       return Promise.reject(new Error(errorMsg))
     }
 
-    return response
+    return res
   },
   (error) => {
     console.error('[API Request Failed]', {

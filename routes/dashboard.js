@@ -4,8 +4,9 @@
 
 const express = require('express');
 const router = express.Router();
-const { query } = require('../db_mysql')
-const { validateRequestBody } = require('../utils/validation');;
+const { query } = require('../db_unified');
+const { validateRequestBody } = require('../utils/validation');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 // GET /api/v1/dashboard/stats - 仪表盘统计数据
 router.get('/stats', async (req, res) => {
@@ -55,8 +56,8 @@ router.get('/stats', async (req, res) => {
 
     res.json({ success: true, data: stats });
   } catch (error) {
-    
-    res.status(500).json({ success: false, message: '获取统计数据失败' });
+    console.error('[Dashboard/Stats] ❌ 获取统计数据失败:', error.message);
+    return sendErrorResponse(res, error, 'Dashboard/Stats');
   }
 });
 
@@ -83,7 +84,7 @@ router.get('/overview', async (req, res) => {
     try {
       cartStats = await getCartStats();
     } catch (err) {
-      
+      console.error('[Dashboard/Overview] ⚠️ 获取购物车统计失败:', err.message);
       cartStats = getDefaultCartStats();
     }
 
@@ -91,7 +92,7 @@ router.get('/overview', async (req, res) => {
     try {
       favoriteStats = await getFavoriteStats();
     } catch (err) {
-      
+      console.error('[Dashboard/Overview] ⚠️ 获取收藏统计失败:', err.message);
       favoriteStats = getDefaultFavoriteStats();
     }
 
@@ -99,7 +100,7 @@ router.get('/overview', async (req, res) => {
     try {
       couponStats = await getCouponStats();
     } catch (err) {
-      
+      console.error('[Dashboard/Overview] ⚠️ 获取优惠券统计失败:', err.message);
       couponStats = getDefaultCouponStats();
     }
 
@@ -107,7 +108,7 @@ router.get('/overview', async (req, res) => {
     try {
       recentOrders = await getRecentOrders();
     } catch (err) {
-      
+      console.error('[Dashboard/Overview] ⚠️ 获取最近订单失败:', err.message);
       recentOrders = [];
     }
 
@@ -115,7 +116,7 @@ router.get('/overview', async (req, res) => {
     try {
       userGrowth = await getUserGrowth();
     } catch (err) {
-      
+      console.error('[Dashboard/Overview] ⚠️ 获取用户增长数据失败:', err.message);
       userGrowth = getDefaultUserGrowth();
     }
 
@@ -123,7 +124,7 @@ router.get('/overview', async (req, res) => {
     try {
       realtimeMetrics = await getRealtimeMetrics();
     } catch (err) {
-      
+      console.error('[Dashboard/Overview] ⚠️ 获取实时指标失败:', err.message);
       realtimeMetrics = getDefaultRealtimeMetrics();
     }
 
@@ -148,11 +149,8 @@ router.get('/overview', async (req, res) => {
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL_ERROR', message: '获取概览数据失败' }
-    });
+    console.error('[Dashboard/Overview] ❌ 获取概览数据失败:', error.message);
+    return sendErrorResponse(res, error, 'Dashboard/Overview');
   }
 });
 
@@ -504,8 +502,8 @@ router.get('/sales', async (req, res) => {
       data: result
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('[Dashboard/Sales] ❌ 获取销售数据失败:', error.message);
+    return sendErrorResponse(res, error, 'Dashboard/Sales');
   }
 });
 
@@ -524,8 +522,8 @@ router.get('/products', async (req, res) => {
       data: { list, pagination: { page: 1, limit: 5, total: count } }
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('[Dashboard/Products] ❌ 获取商品数据失败:', error.message);
+    return sendErrorResponse(res, error, 'Dashboard/Products');
   }
 });
 
@@ -544,8 +542,8 @@ router.get('/users', async (req, res) => {
       data: { list, pagination: { page: 1, limit: 5, total: count } }
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('[Dashboard/Users] ❌ 获取用户数据失败:', error.message);
+    return sendErrorResponse(res, error, 'Dashboard/Users');
   }
 });
 
@@ -565,8 +563,8 @@ router.get('/orders', async (req, res) => {
       data: { list, pagination: { page: 1, limit: 10, total: count } }
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('[Dashboard/Orders] ❌ 获取订单数据失败:', error.message);
+    return sendErrorResponse(res, error, 'Dashboard/Orders');
   }
 });
 

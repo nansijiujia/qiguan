@@ -1,7 +1,19 @@
 // [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
+const { 
+  validateRequired, 
+  validateString, 
+  validateNumber, 
+  validateId,
+  validateEnum,
+  validatePagination,
+  validateDate,
+  sanitizeString,
+  AppError 
+} = require('../utils/validation');
+
 const express = require('express');
-const { query, getOne, execute } = require('../db_mysql')
-const { validateRequestBody } = require('../utils/validation');;
+const { query, getOne, execute } = require('../db_unified')
+const { sendErrorResponse } = require('../utils/errorHandler');
 const router = express.Router();
 
 function generateCouponCode() {
@@ -24,11 +36,26 @@ router.get('/', async (req, res) => {
   try {
     let { page = 1, pageSize = 20, status, type, keyword, dateRange } = req.query;
 
-    page = parseInt(page);
-    pageSize = Math.min(parseInt(pageSize), 100);
+    // 验证分页参数
+    page = Math.max(1, parseInt(page) || 1);
+    pageSize = Math.min(100, Math.max(1, parseInt(pageSize) || 20));
 
-    if (!page || page < 1) page = 1;
-    if (!pageSize || pageSize < 1) pageSize = 20;
+    // 验证状态参数（如果提供）
+    if (status) {
+      const validStatuses = ['active', 'inactive', 'expired'];
+      validateEnum(status, validStatuses, '优惠券状态');
+    }
+
+    // 验证类型参数（如果提供）
+    if (type) {
+      const validTypes = ['fixed', 'percent'];
+      validateEnum(type, validTypes, '优惠券类型');
+    }
+
+    // 验证搜索关键词（如果提供）
+    if (keyword) {
+      validateString(keyword, '搜索关键词', { min: 1, max: 50, required: false });
+    }
 
     const offset = (page - 1) * pageSize;
 
@@ -55,10 +82,17 @@ router.get('/', async (req, res) => {
       try {
         const [startDate, endDate] = JSON.parse(dateRange);
         if (startDate && endDate) {
-          whereConditions.push('(start_time >= ? AND end_time <= ?)');
-          params.push(startDate, endDate);
+          // 验证日期格式
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+            whereConditions.push('(start_time >= ? AND end_time <= ?)');
+            params.push(startDate, endDate);
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        throw new AppError('日期范围格式不正确', 400, 'INVALID_DATE_RANGE');
+      }
     }
 
     const whereSql = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -88,14 +122,8 @@ router.get('/', async (req, res) => {
       responseTime: Date.now() - startTime
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取优惠券列表失败'
-      }
-    });
+    console.error('[Coupons/List] ❌ 获取优惠券列表失败:', error.message);
+    return sendErrorResponse(res, error, 'Coupons/List');
   }
 });
 
@@ -103,78 +131,71 @@ router.post('/', async (req, res) => {
   try {
     const { name, code, type, value, min_order_amount, max_discount, stock, per_user_limit, start_time, end_time, description } = req.body;
 
-    if (!name || name.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: '优惠券名称不能为空' }
-      });
+    // 输入验证
+    validateRequired(['name', 'type', 'value', 'start_time', 'end_time', 'stock'], req.body);
+    
+    validateString(name, '优惠券名称', { min: 2, max: 100 });
+    
+    const validTypes = ['fixed', 'percent'];
+    validateEnum(type, validTypes, '优惠券类型');
+    
+    validateNumber(value, '优惠值', { min: 0.01, max: type === 'percent' ? 100 : 99999 });
+
+    // 日期验证
+    const startDate = validateDate(start_time, '开始时间');
+    const endDate = validateDate(end_time, '结束时间');
+
+    if (startDate >= endDate) {
+      throw new AppError('开始时间必须早于结束时间', 400, 'INVALID_DATE_RANGE');
     }
 
-    if (!type || !['fixed', 'percent'].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: '请选择有效的优惠券类型' }
-      });
+    validateNumber(stock, '库存数量', { min: 1, integer: true });
+    
+    if (per_user_limit !== undefined) {
+      validateNumber(per_user_limit, '每人限领数量', { min: 1, integer: true });
     }
 
-    if (value === undefined || value <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: '优惠值必须大于0' }
-      });
+    if (min_order_amount !== undefined) {
+      validateNumber(min_order_amount, '最低订单金额', { min: 0 });
     }
 
-    if (!start_time || !end_time) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: '请选择有效期' }
-      });
+    if (max_discount !== undefined && type === 'percent') {
+      validateNumber(max_discount, '最大折扣金额', { min: 0 });
     }
 
-    if (new Date(start_time) >= new Date(end_time)) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: '开始时间必须早于结束时间' }
-      });
+    if (description) {
+      validateString(description, '描述', { max: 500, required: false });
     }
 
-    if (!stock || stock < 1) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: '库存数量至少为1' }
-      });
-    }
-
+    // 百分比类型特殊验证
     if (type === 'percent' && value > 100) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: '百分比折扣不能超过100%' }
-      });
+      throw new AppError('百分比折扣不能超过100%', 400, 'VALIDATION_ERROR');
     }
 
+    // 优惠码验证（如果提供）
     const finalCode = code && code.trim() !== '' ? code.trim() : generateCouponCode();
+    if (code && code.trim() !== '') {
+      validateString(code, '优惠码', { min: 4, max: 20, pattern: /^[A-Za-z0-9]+$/ });
+    }
 
     const existingCode = await getOne('SELECT id FROM coupons WHERE code = ?', [finalCode]);
     if (existingCode) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'DUPLICATE_CODE', message: '优惠码已存在，请更换' }
-      });
+      throw new AppError('优惠码已存在，请更换', 400, 'DUPLICATE_CODE');
     }
 
     const sql = `INSERT INTO coupons (name, code, type, value, min_order_amount, max_discount, stock, per_user_limit, start_time, end_time, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const result = await execute(sql, [
-      name.trim(),
+      sanitizeString(name),
       finalCode,
       type,
-      value,
+      Number(value),
       min_order_amount || 0,
       type === 'percent' ? (max_discount || null) : null,
-      stock,
+      parseInt(stock),
       per_user_limit || 1,
       start_time,
       end_time,
-      description || null
+      sanitizeString(description || null)
     ]);
 
     const insertId = result.insertId;
@@ -186,30 +207,27 @@ router.post('/', async (req, res) => {
       message: '优惠券创建成功'
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL_ERROR', message: '创建优惠券失败' }
-    });
+    console.error('[Coupons/Create] ❌ 创建优惠券失败:', error.message);
+    return sendErrorResponse(res, error, 'Coupons/Create');
   }
 });
 
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 验证ID
+    const couponId = validateId(id, '优惠券ID');
 
     const sql = `SELECT c.*,
                  (SELECT COUNT(*) FROM user_coupons WHERE coupon_id = c.id) as received_count,
                  (SELECT COUNT(*) FROM user_coupons WHERE coupon_id = c.id AND status = 'used') as used_count
                  FROM coupons c
                  WHERE c.id = ?`;
-    const coupon = await getOne(sql, [id]);
+    const coupon = await getOne(sql, [couponId]);
 
     if (!coupon) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: '优惠券不存在' }
-      });
+      throw new AppError('优惠券不存在', 404, 'NOT_FOUND');
     }
 
     res.json({
@@ -217,11 +235,8 @@ router.get('/:id', async (req, res) => {
       data: formatCoupon(coupon)
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL_ERROR', message: '获取优惠券详情失败' }
-    });
+    console.error('[Coupons/Detail] ❌ 获取优惠券详情失败:', error.message);
+    return sendErrorResponse(res, error, 'Coupons/Detail');
   }
 });
 
@@ -230,107 +245,102 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, value, min_order_amount, max_discount, stock, per_user_limit, start_time, end_time, description, status } = req.body;
 
-    const existingCoupon = await getOne('SELECT * FROM coupons WHERE id = ?', [id]);
+    // 验证ID
+    const couponId = validateId(id, '优惠券ID');
+
+    const existingCoupon = await getOne('SELECT * FROM coupons WHERE id = ?', [couponId]);
     if (!existingCoupon) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: '优惠券不存在' }
-      });
+      throw new AppError('优惠券不存在', 404, 'NOT_FOUND');
     }
 
-    const hasReceivedUsers = await getOne('SELECT COUNT(*) as cnt FROM user_coupons WHERE coupon_id = ?', [id]);
+    const hasReceivedUsers = await getOne('SELECT COUNT(*) as cnt FROM user_coupons WHERE coupon_id = ?', [couponId]);
     
     const fields = [];
     const params = [];
 
+    // 字段级别验证
     if (name !== undefined) {
+      validateString(name, '优惠券名称', { min: 2, max: 100 });
       fields.push('name = ?');
-      params.push(name.trim());
+      params.push(sanitizeString(name));
     }
 
     if (value !== undefined) {
       if (hasReceivedUsers.cnt > 0) {
-        return res.status(400).json({
-          success: false,
-          error: { code: 'UPDATE_NOT_ALLOWED', message: '已有用户领取的优惠券不允许修改优惠值' }
-        });
+        throw new AppError('已有用户领取的优惠券不允许修改优惠值', 400, 'UPDATE_NOT_ALLOWED');
       }
-      if (value <= 0) {
-        return res.status(400).json({
-          success: false,
-          error: { code: 'VALIDATION_ERROR', message: '优惠值必须大于0' }
-        });
+      validateNumber(value, '优惠值', { min: 0.01, max: existingCoupon.type === 'percent' ? 100 : 99999 });
+      
+      // 百分比类型特殊验证
+      if (existingCoupon.type === 'percent' && value > 100) {
+        throw new AppError('百分比折扣不能超过100%', 400, 'VALIDATION_ERROR');
       }
+      
       fields.push('value = ?');
-      params.push(value);
+      params.push(Number(value));
     }
 
     if (min_order_amount !== undefined) {
+      validateNumber(min_order_amount, '最低订单金额', { min: 0 });
       fields.push('min_order_amount = ?');
-      params.push(min_order_amount);
+      params.push(Number(min_order_amount));
     }
 
     if (max_discount !== undefined) {
+      validateNumber(max_discount, '最大折扣金额', { min: 0 });
       fields.push('max_discount = ?');
       params.push(max_discount);
     }
 
     if (stock !== undefined) {
-      if (stock < 1) {
-        return res.status(400).json({
-          success: false,
-          error: { code: 'VALIDATION_ERROR', message: '库存数量至少为1' }
-        });
-      }
+      validateNumber(stock, '库存数量', { min: 1, integer: true });
       fields.push('stock = ?');
-      params.push(stock);
+      params.push(parseInt(stock));
     }
 
     if (per_user_limit !== undefined) {
+      validateNumber(per_user_limit, '每人限领数量', { min: 1, integer: true });
       fields.push('per_user_limit = ?');
-      params.push(per_user_limit);
+      params.push(parseInt(per_user_limit));
     }
 
     if (start_time !== undefined && end_time !== undefined) {
-      if (new Date(start_time) >= new Date(end_time)) {
-        return res.status(400).json({
-          success: false,
-          error: { code: 'VALIDATION_ERROR', message: '开始时间必须早于结束时间' }
-        });
+      const startDate = validateDate(start_time, '开始时间');
+      const endDate = validateDate(end_time, '结束时间');
+      
+      if (startDate >= endDate) {
+        throw new AppError('开始时间必须早于结束时间', 400, 'INVALID_DATE_RANGE');
       }
       fields.push('start_time = ?, end_time = ?');
       params.push(start_time, end_time);
     }
 
     if (description !== undefined) {
+      validateString(description, '描述', { max: 500 });
       fields.push('description = ?');
-      params.push(description);
+      params.push(sanitizeString(description));
     }
 
-    if (status !== undefined && ['active', 'inactive', 'expired'].includes(status)) {
+    if (status !== undefined) {
+      const validStatuses = ['active', 'inactive', 'expired'];
+      validateEnum(status, validStatuses, '优惠券状态');
       fields.push('status = ?');
       params.push(status);
     }
 
     if (fields.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: '没有提供需要更新的字段' }
-      });
+      throw new AppError('没有提供需要更新的字段', 400, 'VALIDATION_ERROR');
     }
 
-    params.push(id);
-    const sql = `UPDATE coupons SET ${fields.join(', ')} WHERE id = ?`;
+    params.push(couponId);
+    const sql = `UPDATE coupons SET ${fields.join(' ')} WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: '优惠券不存在' }
-      });
+      throw new AppError('优惠券不存在', 404, 'NOT_FOUND');
     }
 
-    const updatedCoupon = await getOne('SELECT * FROM coupons WHERE id = ?', [id]);
+    const updatedCoupon = await getOne('SELECT * FROM coupons WHERE id = ?', [couponId]);
 
     res.json({
       success: true,
@@ -338,56 +348,47 @@ router.put('/:id', async (req, res) => {
       message: '优惠券更新成功'
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL_ERROR', message: '更新优惠券失败' }
-    });
+    console.error('[Coupons/Update] ❌ 更新优惠券失败:', error.message);
+    return sendErrorResponse(res, error, 'Coupons/Update');
   }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 验证ID
+    const couponId = validateId(id, '优惠券ID');
 
-    const existingCoupon = await getOne('SELECT * FROM coupons WHERE id = ?', [id]);
+    const existingCoupon = await getOne('SELECT * FROM coupons WHERE id = ?', [couponId]);
     if (!existingCoupon) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: '优惠券不存在' }
-      });
+      throw new AppError('优惠券不存在', 404, 'NOT_FOUND');
     }
 
-    const receivedCount = await getOne('SELECT COUNT(*) as cnt FROM user_coupons WHERE coupon_id = ?', [id]);
+    const receivedCount = await getOne('SELECT COUNT(*) as cnt FROM user_coupons WHERE coupon_id = ?', [couponId]);
     if (receivedCount.cnt > 0) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'DELETE_NOT_ALLOWED', message: `该优惠券已有 ${receivedCount.cnt} 名用户领取，无法删除` }
-      });
+      throw new AppError(`该优惠券已有 ${receivedCount.cnt} 名用户领取，无法删除`, 400, 'DELETE_NOT_ALLOWED');
     }
 
-    await execute('DELETE FROM coupons WHERE id = ?', [id]);
+    await execute('DELETE FROM coupons WHERE id = ?', [couponId]);
 
     res.json({ success: true, message: '优惠券删除成功' });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL_ERROR', message: '删除优惠券失败' }
-    });
+    console.error('[Coupons/Delete] ❌ 删除优惠券失败:', error.message);
+    return sendErrorResponse(res, error, 'Coupons/Delete');
   }
 });
 
 router.get('/:id/stats', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 验证ID
+    const couponId = validateId(id, '优惠券ID');
 
-    const coupon = await getOne('SELECT * FROM coupons WHERE id = ?', [id]);
+    const coupon = await getOne('SELECT * FROM coupons WHERE id = ?', [couponId]);
     if (!coupon) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: '优惠券不存在' }
-      });
+      throw new AppError('优惠券不存在', 404, 'NOT_FOUND');
     }
 
     const stats = await getOne(`
@@ -397,7 +398,7 @@ router.get('/:id/stats', async (req, res) => {
         SUM(CASE WHEN status = 'unused' THEN 1 ELSE 0 END) as unused_count,
         SUM(CASE WHEN status = 'expired' THEN 1 ELSE 0 END) as expired_count
       FROM user_coupons WHERE coupon_id = ?
-    `, [id]);
+    `, [couponId]);
 
     const recentUsers = await query(`
       SELECT uc.user_id, uc.status, uc.received_at, uc.used_at, u.username, u.email
@@ -406,7 +407,7 @@ router.get('/:id/stats', async (req, res) => {
       WHERE uc.coupon_id = ?
       ORDER BY uc.received_at DESC
       LIMIT 10
-    `, [id]);
+    `, [couponId]);
 
     const dailyStats = await query(`
       SELECT DATE(received_at) as date, COUNT(*) as count
@@ -414,12 +415,12 @@ router.get('/:id/stats', async (req, res) => {
       WHERE coupon_id = ? AND received_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
       GROUP BY DATE(received_at)
       ORDER BY date ASC
-    `, [id]);
+    `, [couponId]);
 
     res.json({
       success: true,
       data: {
-        coupon_id: parseInt(id),
+        coupon_id: parseInt(couponId),
         coupon_name: coupon.name,
         received_count: stats?.received_count || 0,
         used_count: stats?.used_count || 0,
@@ -431,11 +432,8 @@ router.get('/:id/stats', async (req, res) => {
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL_ERROR', message: '获取优惠券统计失败' }
-    });
+    console.error('[Coupons/Stats] ❌ 获取优惠券统计失败:', error.message);
+    return sendErrorResponse(res, error, 'Coupons/Stats');
   }
 });
 
@@ -483,11 +481,8 @@ router.get('/stats/overview', async (req, res) => {
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL_ERROR', message: '获取全局统计失败' }
-    });
+    console.error('[Coupons/Overview] ❌ 获取全局统计失败:', error.message);
+    return sendErrorResponse(res, error, 'Coupons/Overview');
   }
 });
 

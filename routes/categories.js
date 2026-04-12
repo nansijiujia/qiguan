@@ -2,9 +2,19 @@
 // [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
 // [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
 
+const { 
+  validateRequired, 
+  validateString, 
+  validateNumber, 
+  validateId,
+  validateEnum,
+  sanitizeString,
+  AppError 
+} = require('../utils/validation');
+
 const express = require('express');
-const { query, getOne, execute } = require('../db_mysql')
-const { validateRequestBody } = require('../utils/validation');;
+const { query, getOne, execute } = require('../db_unified');
+const { sendErrorResponse } = require('../utils/errorHandler');
 const router = express.Router();
 
 function buildTree(categories, parentId = null) {
@@ -46,17 +56,19 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL_ERROR', message: '获取分类列表失败' }
-    });
+    console.error('[Categories/List] ❌ 获取分类列表失败:', error.message);
+    return sendErrorResponse(res, error, 'Categories/List');
   }
 });
 
 router.get('/tree', async (req, res) => {
   try {
     const { flat } = req.query;
+
+    // 验证flat参数（如果提供）
+    if (flat !== undefined && flat !== 'true' && flat !== 'false') {
+      throw new AppError('flat参数必须为true或false', 400, 'INVALID_INPUT');
+    }
 
     const sql = `SELECT c.*,
                  COUNT(p.id) as product_count
@@ -88,14 +100,8 @@ router.get('/tree', async (req, res) => {
       data: tree
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取分类树失败'
-      }
-    });
+    console.error('[Categories/Tree] ❌ 获取分类树失败:', error.message);
+    return sendErrorResponse(res, error, 'Categories/Tree');
   }
 });
 
@@ -109,26 +115,23 @@ function calculateLevel(categories, categoryId, level = 0) {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 验证ID
+    const categoryId = validateId(id, '分类ID');
 
     const categorySql = `SELECT c.*, COUNT(p.id) as product_count
                          FROM categories c
                          LEFT JOIN products p ON c.id = p.category_id AND p.status = 'active'
                          WHERE c.id = ?
                          GROUP BY c.id`;
-    const category = await getOne(categorySql, [id]);
+    const category = await getOne(categorySql, [categoryId]);
 
     if (!category) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: '分类不存在'
-        }
-      });
+      throw new AppError('分类不存在', 404, 'NOT_FOUND');
     }
 
     const childrenSql = `SELECT * FROM categories WHERE parent_id = ? ORDER BY sort_order ASC`;
-    const children = await query(childrenSql, [id]);
+    const children = await query(childrenSql, [categoryId]);
 
     const parentSql = `SELECT * FROM categories WHERE id = ?`;
     let parent = null;
@@ -145,14 +148,8 @@ router.get('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '获取分类详情失败'
-      }
-    });
+    console.error('[Categories/Detail] ❌ 获取分类详情失败:', error.message);
+    return sendErrorResponse(res, error, 'Categories/Detail');
   }
 });
 
@@ -160,46 +157,41 @@ router.post('/', async (req, res) => {
   try {
     const { name, parent_id, sort_order, status } = req.body;
 
-    if (!name || name.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '分类名称不能为空'
-        }
-      });
+    // 输入验证
+    validateRequired(['name'], req.body);
+    validateString(name, '分类名称', { min: 2, max: 50 });
+    
+    // XSS防护
+    const sanitizedName = sanitizeString(name);
+    
+    if (parent_id !== undefined && parent_id !== null) {
+      validateId(parent_id, '父分类ID');
+    }
+    
+    validateNumber(sort_order, '排序', { min: 0, integer: true, required: false });
+    
+    if (status) {
+      validateEnum(status, ['active', 'inactive'], '状态');
     }
 
     // 检查分类名称是否已存在
-    const existing = await getOne('SELECT id FROM categories WHERE name = ?', [name.trim()]);
+    const existing = await getOne('SELECT id FROM categories WHERE name = ?', [sanitizedName]);
     if (existing) {
-      return res.status(409).json({
-        success: false,
-        error: {
-          code: 'DUPLICATE_ERROR',
-          message: `分类名称"${name}"已存在`
-        }
-      });
+      throw new AppError(`分类名称"${sanitizedName}"已存在`, 409, 'DUPLICATE_ERROR');
     }
 
     if (parent_id !== undefined && parent_id !== null) {
       const parentExists = await getOne('SELECT id FROM categories WHERE id = ?', [parent_id]);
       if (!parentExists) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: '父分类不存在'
-          }
-        });
+        throw new AppError('父分类不存在', 400, 'VALIDATION_ERROR');
       }
     }
 
     const sql = `INSERT INTO categories (name, parent_id, sort_order, status, created_at) VALUES (?, ?, ?, ?, NOW())`;
     const result = await execute(sql, [
-      name.trim(),
+      sanitizedName,
       parent_id || null,
-      sort_order || 0,
+      sort_order !== undefined ? parseInt(sort_order) : 0,
       status || 'active'
     ]);
 
@@ -208,30 +200,18 @@ router.post('/', async (req, res) => {
       success: true,
       data: {
         id: insertId,
-        name: name.trim(),
+        name: sanitizedName,
         parent_id: parent_id || null,
-        sort_order: sort_order || 0,
+        sort_order: sort_order !== undefined ? parseInt(sort_order) : 0,
         status: status || 'active'
       }
     });
   } catch (error) {
-    
+    console.error('[Categories/Create] ❌ 创建分类失败:', error.message);
     if (error.code === 'ER_DUP_ENTRY' || error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      return res.status(409).json({
-        success: false,
-        error: {
-          code: 'DUPLICATE_ERROR',
-          message: '分类名称已存在'
-        }
-      });
+      return sendErrorResponse(res, error, 'Categories/Create');
     }
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '创建分类失败'
-      }
-    });
+    return sendErrorResponse(res, error, 'Categories/Create');
   }
 });
 
@@ -240,44 +220,43 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, parent_id, sort_order, status } = req.body;
 
-    if (!name || name.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '分类名称不能为空'
-        }
-      });
+    // 验证ID
+    const categoryId = validateId(id, '分类ID');
+
+    // 输入验证
+    if (name !== undefined && name !== null && name.trim() !== '') {
+      validateString(name, '分类名称', { min: 2, max: 50 });
+    } else if (name !== undefined && (name === null || name.trim() === '')) {
+      throw new AppError('分类名称不能为空', 400, 'VALIDATION_ERROR');
     }
 
-    if (parent_id !== undefined && parent_id !== null && parseInt(parent_id) === parseInt(id)) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '不能将自己设为父分类'
-        }
-      });
+    if (parent_id !== undefined && parent_id !== null && parseInt(parent_id) === parseInt(categoryId)) {
+      throw new AppError('不能将自己设为父分类', 400, 'VALIDATION_ERROR');
     }
 
     if (parent_id !== undefined && parent_id !== null) {
+      validateId(parent_id, '父分类ID');
       const parentExists = await getOne('SELECT id FROM categories WHERE id = ?', [parent_id]);
       if (!parentExists) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: '父分类不存在'
-          }
-        });
+        throw new AppError('父分类不存在', 400, 'VALIDATION_ERROR');
       }
+    }
+
+    if (sort_order !== undefined) {
+      validateNumber(sort_order, '排序', { min: 0, integer: true });
+    }
+
+    if (status !== undefined) {
+      validateEnum(status, ['active', 'inactive'], '状态');
     }
 
     const fields = [];
     const params = [];
 
-    fields.push('name = ?');
-    params.push(name);
+    if (name !== undefined) {
+      fields.push('name = ?');
+      params.push(sanitizeString(name));
+    }
 
     if (parent_id !== undefined) {
       fields.push('parent_id = ?');
@@ -285,106 +264,75 @@ router.put('/:id', async (req, res) => {
     }
     if (sort_order !== undefined) {
       fields.push('sort_order = ?');
-      params.push(sort_order);
+      params.push(parseInt(sort_order));
     }
     if (status !== undefined) {
       fields.push('status = ?');
       params.push(status);
     }
 
-    params.push(id);
+    if (fields.length === 0) {
+      throw new AppError('没有提供需要更新的字段', 400, 'VALIDATION_ERROR');
+    }
+
+    params.push(categoryId);
     const sql = `UPDATE categories SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
     const result = await execute(sql, params);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: '分类不存在'
-        }
-      });
+      throw new AppError('分类不存在', 404, 'NOT_FOUND');
     }
 
     res.json({
       success: true,
       data: {
-        id: parseInt(id),
+        id: parseInt(categoryId),
         name,
         parent_id: parent_id !== undefined ? parent_id : null,
-        sort_order: sort_order !== undefined ? sort_order : 0,
+        sort_order: sort_order !== undefined ? parseInt(sort_order) : 0,
         status: status !== undefined ? status : 'active'
       }
     });
   } catch (error) {
+    console.error('[Categories/Update] ❌ 更新分类失败:', error.message);
+    if (error instanceof AppError) {
+      return sendErrorResponse(res, error, 'Categories/Update');
+    }
     
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({
-        success: false,
-        error: {
-          code: 'DUPLICATE_ERROR',
-          message: '分类名称已存在'
-        }
-      });
+      return sendErrorResponse(res, new AppError('分类名称已存在', 409, 'DUPLICATE_ERROR'), 'Categories/Update');
     }
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '更新分类失败'
-      }
-    });
+    return sendErrorResponse(res, error, 'Categories/Update');
   }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 验证ID
+    const categoryId = validateId(id, '分类ID');
 
-    const childCount = await getOne('SELECT COUNT(*) as count FROM categories WHERE parent_id = ?', [id]);
+    const childCount = await getOne('SELECT COUNT(*) as count FROM categories WHERE parent_id = ?', [categoryId]);
     if (childCount && childCount.count > 0) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'HAS_CHILDREN',
-          message: '该分类下存在子分类，无法删除'
-        }
-      });
+      throw new AppError('该分类下存在子分类，无法删除', 400, 'HAS_CHILDREN');
     }
 
-    const productCount = await getOne('SELECT COUNT(*) as count FROM products WHERE category_id = ?', [id]);
+    const productCount = await getOne('SELECT COUNT(*) as count FROM products WHERE category_id = ?', [categoryId]);
     if (productCount && productCount.count > 0) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'HAS_PRODUCTS',
-          message: '该分类下存在商品，无法删除'
-        }
-      });
+      throw new AppError('该分类下存在商品，无法删除', 400, 'HAS_PRODUCTS');
     }
 
-    const result = await execute('DELETE FROM categories WHERE id = ?', [id]);
+    const result = await execute('DELETE FROM categories WHERE id = ?', [categoryId]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: '分类不存在'
-        }
-      });
+      throw new AppError('分类不存在', 404, 'NOT_FOUND');
     }
 
     res.json({ success: true, message: '分类删除成功' });
   } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: '删除分类失败'
-      }
-    });
+    console.error('[Categories/Delete] ❌ 删除分类失败:', error.message);
+    return sendErrorResponse(res, error, 'Categories/Delete');
   }
 });
 

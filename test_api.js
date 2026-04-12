@@ -1,131 +1,128 @@
 const http = require('http');
 
-// 测试登录API
-function testLogin() {
+function testAPI(path, method = 'GET', data = null) {
   return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({
-      username: 'admin',
-      password: 'admin123'
-    });
-    
     const options = {
       hostname: '127.0.0.1',
       port: 3000,
-      path: '/api/v1/auth/login',
-      method: 'POST',
+      path: path,
+      method: method,
       headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
+        'Content-Type': 'application/json'
       }
     };
-    
+
+    if (data) {
+      const jsonData = JSON.stringify(data);
+      options.headers['Content-Length'] = Buffer.byteLength(jsonData);
+    }
+
     const req = http.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve({
+            status: res.statusCode,
+            data: JSON.parse(body)
+          });
+        } catch (e) {
+          resolve({
+            status: res.statusCode,
+            data: body
+          });
+        }
+      });
     });
-    
+
     req.on('error', reject);
-    req.write(postData);
+
+    if (data) {
+      req.write(JSON.stringify(data));
+    }
     req.end();
   });
 }
 
-// 使用Token访问受保护API
-function testProtectedApi(token) {
-  return new Promise((resolve, reject) => {
+async function runTests() {
+  console.log('=== API测试开始 ===\n');
+
+  // 1. 健康检查
+  console.log('1. 健康检查 GET /api/v1/health');
+  const health = await testAPI('/api/v1/health');
+  console.log(`   状态: ${health.status}, 数据: ${JSON.stringify(health.data).substring(0, 100)}...\n`);
+
+  // 2. 登录测试
+  console.log('2. 登录测试 POST /api/v1/auth/login');
+  const login = await testAPI('/api/v1/auth/login', 'POST', {
+    username: 'admin',
+    password: 'admin123'
+  });
+  console.log(`   状态: ${login.status}, 数据: ${JSON.stringify(login.data).substring(0, 200)}\n`);
+
+  let token = null;
+  if (login.data && login.data.success && login.data.data && login.data.data.token) {
+    token = login.data.data.token;
+    console.log(`   ✅ 登录成功！Token获取成功\n`);
+  } else {
+    console.log(`   ❌ 登录失败\n`);
+  }
+
+  // 3-9. 其他API测试（使用token）
+  const tests = [
+    { name: '商品列表', path: '/api/v1/products?page=1&limit=5' },
+    { name: '订单列表', path: '/api/v1/orders?page=1&limit=5' },
+    { name: '用户列表', path: '/api/v1/users?page=1&limit=5' },
+    { name: '优惠券列表', path: '/api/v1/coupons' },
+    { name: '分类列表', path: '/api/v1/categories' },
+    { name: 'Banner列表', path: '/api/v1/content/banners' },
+    { name: '仪表盘概览', path: '/api/v1/dashboard/overview' }
+  ];
+
+  for (let i = 0; i < tests.length; i++) {
+    const test = tests[i];
+    console.log(`${i + 3}. ${test.name} GET ${test.path}`);
+
     const options = {
       hostname: '127.0.0.1',
       port: 3000,
-      path: '/api/v1/products',
+      path: test.path,
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       }
     };
-    
-    const req = http.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
-    });
-    
-    req.on('error', reject);
-    req.end();
-  });
-}
 
-// 无Token访问
-function testUnauthorized() {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: '127.0.0.1',
-      port: 3000,
-      path: '/api/v1/products',
-      method: 'GET'
-    };
-    
-    const req = http.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
-    });
-    
-    req.on('error', reject);
-    req.end();
-  });
-}
-
-async function main() {
-  console.log('=== 绮管后台 API 诊断测试 ===\n');
-  
-  // Test 1: 无Token访问
-  console.log('Test 1: 无Token访问 /api/v1/products');
-  try {
-    const result = await testUnauthorized();
-    console.log(`Status: ${result.status}`);
-    console.log(`Body: ${result.body.substring(0, 200)}\n`);
-  } catch(e) { console.error('Error:', e.message); }
-  
-  // Test 2: 登录
-  console.log('Test 2: 登录 admin/admin123');
-  try {
-    const loginResult = await testLogin();
-    console.log(`Status: ${loginResult.status}`);
-    console.log(`Body: ${loginResult.body}\n`);
-    
-    if (loginResult.status === 200) {
-      const loginData = JSON.parse(loginResult.body);
-      if (loginData.success && loginData.data?.token) {
-        // Test 3: 有Token访问
-        console.log('Test 3: 使用Token访问 /api/v1/products');
-        const protectedResult = await testProtectedApi(loginData.data.token);
-        console.log(`Status: ${protectedResult.status}`);
-        console.log(`Body: ${protectedResult.body.substring(0, 500)}\n`);
-        
-        // Test 4: 访问分类
-        console.log('Test 4: 使用Token访问 /api/v1/categories');
-        const catOptions = {
-          hostname: '127.0.0.1',
-          port: 3000,
-          path: '/api/v1/categories',
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${loginData.data.token}` }
-        };
-        const catResult = await new Promise((resolve, reject) => {
-          const req = http.request(catOptions, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => resolve({ status: res.statusCode, body: data }));
-          });
-          req.on('error', reject);
-          req.end();
-        });
-        console.log(`Status: ${catResult.status}`);
-        console.log(`Body: ${catResult.body.substring(0, 500)}\n`);
-      }
+    if (token) {
+      options.headers['Authorization'] = `Bearer ${token}`;
     }
-  } catch(e) { console.error('Error:', e.message); }
+
+    const result = await new Promise((resolve) => {
+      const req = http.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => body += chunk);
+        res.on('end', () => {
+          try {
+            resolve({
+              status: res.statusCode,
+              data: JSON.parse(body)
+            });
+          } catch (e) {
+            resolve({
+              status: res.statusCode,
+              data: body
+            });
+          }
+        });
+      });
+      req.end();
+    });
+
+    const success = result.status === 200 || (result.data && result.data.success);
+    console.log(`   状态: ${result.status}, ${success ? '✅ 成功' : '❌ 失败'}\n`);
+  }
+
+  console.log('=== API测试完成 ===');
 }
 
-main().catch(console.error);
+runTests().catch(console.error);

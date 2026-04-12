@@ -1,6 +1,6 @@
 // [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
 const express = require('express');
-const { query } = require('../db_mysql');
+const { query } = require('../db_unified');
 const router = express.Router();
 
 // 健康检查 - 根路径（因为已在index.js中挂载到/api/v1/health）

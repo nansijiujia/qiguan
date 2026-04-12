@@ -3,6 +3,7 @@ require('dotenv').config();
 const mysql = require('mysql2/promise');
 const { log } = console;
 const { DATABASE_CONFIG } = require('./config/index');
+const { AppError } = require('./utils/errorHandler');
 
 /**
  * ============================================================
@@ -167,9 +168,9 @@ async function query(sql, params = []) {
         
     } catch (error) {
         log(`[MySQL/ERROR] ❌ 查询失败: ${error.message}`, 'error');
-        log(`[MySQL/ERROR] SQL: ${sql}`, 'error');
+        log(`[MySQL/ERROR] SQL: ${sql.substring(0, 100)}`, 'error');
         if (params.length > 0) log(`[MySQL/ERROR] Params: ${JSON.stringify(params)}`, 'error');
-        throw error;
+        throw new AppError('数据库查询失败', 500, 'DATABASE_ERROR');
     }
 }
 
@@ -231,9 +232,9 @@ async function run(sql, params = []) {
         
     } catch (error) {
         log(`[MySQL/ERROR] ❌ 写操作失败: ${error.message}`, 'error');
-        log(`[MySQL/ERROR] SQL: ${sql}`, 'error');
+        log(`[MySQL/ERROR] SQL: ${sql.substring(0, 100)}`, 'error');
         if (params.length > 0) log(`[MySQL/ERROR] Params: ${JSON.stringify(params)}`, 'error');
-        throw error;
+        throw new AppError('数据库写操作失败', 500, 'DATABASE_ERROR');
     }
 }
 

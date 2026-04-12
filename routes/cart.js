@@ -3,7 +3,7 @@
 // [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
 
 const express = require('express');
-const { query, getOne, run } = require('../db_mysql');
+const { query, getOne, run } = require('../db_unified');
 const { validateRequestBody } = require('../utils/validation');
 const router = express.Router();
 

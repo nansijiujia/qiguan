@@ -2,15 +2,38 @@
 // [PERFORMANCE] 建议: 考虑使用批量查询替代循环内单条查询以提高性能
 // [PERFORMANCE] Example: 使用 IN (?) 和批量参数代替循环
 
+const { 
+  validateRequired, 
+  validateString, 
+  validateNumber, 
+  validateId,
+  validateEnum,
+  validateArray,
+  validateObject,
+  validatePagination,
+  sanitizeString,
+  AppError 
+} = require('../utils/validation');
+
 const express = require('express');
-const { query, getOne, execute } = require('../db_mysql')
-const { validateRequestBody } = require('../utils/validation');;
+const { query, getOne, execute } = require('../db_unified');
+const { validateRequestBody } = require('../utils/validation');
+const { sendErrorResponse } = require('../utils/errorHandler');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // 验证分页参数
+    const { page: pageNum, limit: limitNum, offset } = validatePagination(req);
+    
+    // 验证状态参数（如果提供）
+    if (status) {
+      const validStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled'];
+      validateEnum(status, validStatuses, '订单状态');
+    }
+
     const params = [];
     let whereSql = 'WHERE 1=1';
 
@@ -31,7 +54,7 @@ router.get('/', async (req, res) => {
        ${whereSql}
        ORDER BY o.created_at DESC
        LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+      [...params, limitNum, offset]
     );
 
     res.json({
@@ -42,15 +65,15 @@ router.get('/', async (req, res) => {
           shipping_address: order.shipping_address ? JSON.parse(order.shipping_address) : null
         })),
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page: pageNum,
+          limit: limitNum,
           total: countResult.total || 0
         }
       }
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to get orders' } });
+    console.error('[Orders/List] ❌ 获取订单列表失败:', error.message);
+    return sendErrorResponse(res, error, 'Orders/List');
   }
 });
 
@@ -58,16 +81,40 @@ router.post('/', async (req, res) => {
   try {
     const { items, shipping_address, remark } = req.body;
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_ORDER', message: 'Order must contain at least one item' } });
-    }
+    // 输入验证 - 订单项必须存在且为数组
+    validateArray(items, '订单项', { required: true, minLength: 1 });
 
     let totalAmount = 0;
-    for (const item of items) {
-      if (!item.product_id || !item.quantity || !item.price || item.quantity <= 0 || item.price <= 0) {
-        return res.status(400).json({ success: false, error: { code: 'INVALID_ORDER', message: 'Each item must have valid product_id, quantity and price' } });
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      // 验证每个订单项的字段
+      if (!item.product_id) {
+        throw new AppError(`订单项${i + 1}: 商品ID不能为空`, 400, 'INVALID_ORDER');
       }
-      totalAmount += item.quantity * item.price;
+      validateId(item.product_id, `订单项${i + 1}商品ID`);
+      
+      if (!item.quantity || item.quantity <= 0) {
+        throw new AppError(`订单项${i + 1}: 数量必须是大于0的正整数`, 400, 'INVALID_ORDER');
+      }
+      validateNumber(item.quantity, `订单项${i + 1}数量`, { min: 1, integer: true });
+      
+      if (!item.price || item.price <= 0) {
+        throw new AppError(`订单项${i + 1}: 价格必须大于0`, 400, 'INVALID_ORDER');
+      }
+      validateNumber(item.price, `订单项${i + 1}价格`, { min: 0.01, max: 999999.99 });
+      
+      totalAmount += parseInt(item.quantity) * Number(item.price);
+    }
+
+    // 验证收货地址（如果提供）
+    if (shipping_address) {
+      validateObject(shipping_address, '收货地址');
+    }
+
+    // 验证备注长度（如果提供）
+    if (remark) {
+      validateString(remark, '备注', { max: 500, required: false });
     }
 
     const timestamp = Date.now();
@@ -78,7 +125,7 @@ router.post('/', async (req, res) => {
     const result = await execute(
       `INSERT INTO orders (order_no, user_id, total_amount, status, shipping_address, remark)
        VALUES (?, ?, ?, 'pending', ?, ?)`,
-      [orderNumber, req.user?.userId || null, totalAmount, shippingAddressJson, remark || '']
+      [orderNumber, req.user?.userId || null, totalAmount, shippingAddressJson, sanitizeString(remark || '')]
     );
 
     const orderId = result.insertId;
@@ -87,7 +134,7 @@ router.post('/', async (req, res) => {
       const product = await getOne('SELECT name FROM products WHERE id = ?', [item.product_id]);
       await execute(
         'INSERT INTO order_items (order_id, product_id, product_name, quantity, price) VALUES (?, ?, ?, ?, ?)',
-        [orderId, item.product_id, product?.name || 'Unknown', item.quantity, item.price]
+        [orderId, item.product_id, product?.name || 'Unknown', parseInt(item.quantity), Number(item.price)]
       );
     }
 
@@ -97,23 +144,27 @@ router.post('/', async (req, res) => {
       message: 'Order created successfully'
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create order' } });
+    console.error('[Orders/Create] ❌ 创建订单失败:', error.message);
+    return sendErrorResponse(res, error, 'Orders/Create');
   }
 });
 
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const order = await getOne('SELECT * FROM orders WHERE id = ?', [id]);
+    
+    // 验证ID
+    const orderId = validateId(id, '订单ID');
+
+    const order = await getOne('SELECT * FROM orders WHERE id = ?', [orderId]);
 
     if (!order) {
-      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
+      throw new AppError('订单不存在', 404, 'NOT_FOUND');
     }
 
     const items = await query(
       'SELECT * FROM order_items WHERE order_id = ?',
-      [id]
+      [orderId]
     );
 
     res.json({
@@ -125,8 +176,8 @@ router.get('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to get order details' } });
+    console.error('[Orders/Detail] ❌ 获取订单详情失败:', error.message);
+    return sendErrorResponse(res, error, 'Orders/Detail');
   }
 });
 
@@ -135,17 +186,23 @@ router.put('/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
+    // 验证ID和状态
+    const orderId = validateId(id, '订单ID');
+    
     if (!status) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Status is required' } });
+      throw new AppError('状态不能为空', 400, 'INVALID_STATUS');
     }
+    
+    const validStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled'];
+    validateEnum(status, validStatuses, '订单状态');
 
-    await execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?", [status, id]);
+    await execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?", [status, orderId]);
 
-    const updatedOrder = await getOne('SELECT * FROM orders WHERE id = ?', [id]);
+    const updatedOrder = await getOne('SELECT * FROM orders WHERE id = ?', [orderId]);
     res.json({ success: true, data: updatedOrder, message: `Order status updated to ${status}` });
   } catch (error) {
-    
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update order status' } });
+    console.error('[Orders/UpdateStatus] ❌ 更新订单状态失败:', error.message);
+    return sendErrorResponse(res, error, 'Orders/UpdateStatus');
   }
 });
 
@@ -153,6 +210,10 @@ router.put('/:id/status', async (req, res) => {
 router.put('/:id/cancel', async (req, res) => {
   try {
     const orderId = req.params.id;
+    
+    // 验证订单ID
+    const validatedOrderId = validateId(orderId, '订单ID');
+    
     const userId = req.user?.userId || req.user?.id;
 
     // 检查订单是否存在且属于当前用户（如果是普通用户）
@@ -160,33 +221,30 @@ router.put('/:id/cancel', async (req, res) => {
     if (userId) {
       const [orders] = await query(
         'SELECT * FROM orders WHERE id = ? AND user_id = ?',
-        [orderId, userId]
+        [validatedOrderId, userId]
       );
 
       if (!orders) {
-        return res.status(404).json({ success: false, message: '订单不存在或无权操作' });
+        throw new AppError('订单不存在或无权操作', 404, 'NOT_FOUND');
       }
       order = orders;
     } else {
       // 管理员可以直接查询
-      order = await getOne('SELECT * FROM orders WHERE id = ?', [orderId]);
+      order = await getOne('SELECT * FROM orders WHERE id = ?', [validatedOrderId]);
       if (!order) {
-        return res.status(404).json({ success: false, message: '订单不存在' });
+        throw new AppError('订单不存在', 404, 'NOT_FOUND');
       }
     }
 
     // 检查订单状态是否可取消（只有待付款和待发货可取消）
     if (!['pending', 'paid'].includes(order.status)) {
-      return res.status(400).json({
-        success: false,
-        message: `当前订单状态为${order.status}，无法取消`
-      });
+      throw new AppError(`当前订单状态为${order.status}，无法取消`, 400, 'INVALID_STATUS');
     }
 
     // 更新订单状态
     await execute(
       "UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?",
-      ['cancelled', orderId]
+      ['cancelled', validatedOrderId]
     );
 
     // 如果已支付，需要退款逻辑（此处简化处理）
@@ -200,7 +258,7 @@ router.put('/:id/cancel', async (req, res) => {
       await execute(
         `INSERT INTO admin_logs (admin_id, action, target_type, target_id, details, ip_address)
          VALUES (?, 'cancel_order', 'order', ?, ?, ?)`,
-        [userId || 0, orderId, JSON.stringify({ orderId, previousStatus: order.status }), req.ip || 'unknown']
+        [userId || 0, validatedOrderId, JSON.stringify({ orderId: validatedOrderId, previousStatus: order.status }), req.ip || 'unknown']
       );
     } catch (logError) {
       console.error('[orders] 日志记录失败:', logError.message);
@@ -209,11 +267,11 @@ router.put('/:id/cancel', async (req, res) => {
     res.json({
       success: true,
       message: '订单已成功取消',
-      data: { orderId, newStatus: 'cancelled' }
+      data: { orderId: validatedOrderId, newStatus: 'cancelled' }
     });
   } catch (error) {
-    
-    res.status(500).json({ success: false, message: '取消订单失败，请稍后重试' });
+    console.error('[Orders/Cancel] ❌ 取消订单失败:', error.message);
+    return sendErrorResponse(res, error, 'Orders/Cancel');
   }
 });
 

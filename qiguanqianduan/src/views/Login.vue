@@ -82,7 +82,10 @@ const handleLogin = async () => {
 
     loading.value = true
     try {
-      const res = await request.post('/v1/auth/login', form)
+      const res = await request.post('/v1/auth/login', {
+        username: String(form.username || '').trim(),
+        password: String(form.password || '')
+      })
 
       console.log('[LOGIN] API Response:', res)
       console.log('[LOGIN] res.success:', res.success)
