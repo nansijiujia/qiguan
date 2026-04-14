@@ -1,7 +1,11 @@
 <template>
-  <div class="orders-container">
-    <!-- 工具栏 -->
-    <el-card shadow="never" class="toolbar-card">
+  <ListPageContainer
+    :loading="loading"
+    :pagination="pagination"
+    @size-change="fetchData"
+    @current-change="fetchData"
+  >
+    <template #toolbar>
       <div class="toolbar">
         <div class="toolbar-left">
           <el-select v-model="filters.status" placeholder="全部状态" clearable style="width: 140px;">
@@ -18,79 +22,65 @@
           <el-button @click="handleExport">导出</el-button>
         </div>
       </div>
-    </el-card>
+    </template>
 
-    <!-- 数据表格 -->
-    <el-card shadow="never" class="table-card" v-loading="loading">
-      <el-table :data="tableData" stripe border style="width: 100%">
-        <el-table-column prop="order_no" label="订单号" width="200" fixed>
-          <template #default="{ row }">
-            <span class="order-no">{{ row.order_no }}</span>
-          </template>
-        </el-table-column>
+    <el-table :data="tableData" stripe border style="width: 100%">
+      <el-table-column prop="order_no" label="订单号" width="200" fixed>
+        <template #default="{ row }">
+          <span class="order-no">{{ row.order_no }}</span>
+        </template>
+      </el-table-column>
 
-        <el-table-column prop="customer_name" label="客户" width="120" />
+      <el-table-column prop="customer_name" label="客户" width="120" />
 
-        <el-table-column label="商品信息" min-width="180">
-          <template #default="{ row }">
-            <div class="product-info">{{ row.productNames || '暂无' }}</div>
-          </template>
-        </el-table-column>
+      <el-table-column label="商品信息" min-width="180">
+        <template #default="{ row }">
+          <div class="product-info">{{ row.productNames || '暂无' }}</div>
+        </template>
+      </el-table-column>
 
-        <el-table-column prop="total_amount" label="总金额(¥)" width="110" align="center">
-          <template #default="{ row }">
-            <span class="amount">¥{{ row.total_amount?.toFixed(2) }}</span>
-          </template>
-        </el-table-column>
+      <el-table-column prop="total_amount" label="总金额(¥)" width="110" align="center">
+        <template #default="{ row }">
+          <span class="amount">¥{{ row.total_amount?.toFixed(2) }}</span>
+        </template>
+      </el-table-column>
 
-        <el-table-column prop="payment_method" label="支付方式" width="100" align="center" />
+      <el-table-column prop="payment_method" label="支付方式" width="100" align="center" />
 
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" effect="dark">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
+      <el-table-column prop="status" label="状态" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)" size="small" effect="dark">
+            {{ getStatusText(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
 
-        <el-table-column prop="created_at" label="创建时间" width="170" />
+      <el-table-column prop="created_at" label="创建时间" width="170" />
 
-        <el-table-column label="操作" width="220" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" text size="small" @click="showDetail(row)">
-              <el-icon><View /></el-icon>详情
-            </el-button>
-            <el-button 
-              v-if="row.status === 'pending'" 
-              type="warning" text size="small"
-              @click="handleStatusChange(row, 'cancel')"
-            >取消</el-button>
-            <el-button 
-              v-if="row.status === 'paid'" 
-              type="success" text size="small"
-              @click="handleStatusChange(row, 'ship')"
-            >发货</el-button>
-            <el-button 
-              v-if="row.status === 'shipped'" 
-              type="info" text size="small"
-              @click="handleStatusChange(row, 'confirm')"
-            >确认收货</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.limit"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
-          @size-change="fetchData"
-          @current-change="fetchData"
-        />
-      </div>
-    </el-card>
+      <el-table-column label="操作" width="220" align="center" fixed="right">
+        <template #default="{ row }">
+          <el-button type="primary" text size="small" @click="showDetail(row)">
+            <el-icon><View /></el-icon>详情
+          </el-button>
+          <el-button 
+            v-if="row.status === 'pending'" 
+            type="warning" text size="small"
+            @click="handleStatusChange(row, 'cancel')"
+          >取消</el-button>
+          <el-button 
+            v-if="row.status === 'paid'" 
+            type="success" text size="small"
+            @click="handleStatusChange(row, 'ship')"
+          >发货</el-button>
+          <el-button 
+            v-if="row.status === 'shipped'" 
+            type="info" text size="small"
+            @click="handleStatusChange(row, 'confirm')"
+          >确认收货</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </ListPageContainer>
 
     <!-- 订单详情抽屉 -->
     <el-drawer v-model="drawerVisible" :title="'订单详情 - ' + currentOrder?.order_no" size="500px">
@@ -135,25 +125,37 @@
         </el-timeline>
       </div>
     </el-drawer>
-  </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { View } from '@element-plus/icons-vue'
 import { orderApi } from '@/api'
+import ListPageContainer from '@/components/ListPageContainer.vue'
+import { usePagination } from '@/composables/usePagination'
+import { useTableLoading } from '@/composables/useTableLoading'
 
-const loading = ref(false)
+const { pagination } = usePagination(10)
+const { loading } = useTableLoading()
+
 const detailLoading = ref(false)
 const drawerVisible = ref(false)
 const currentOrder = ref(null)
 const tableData = ref([])
 
 const filters = reactive({ status: '', keyword: '' })
-const pagination = reactive({ page: 1, limit: 10, total: 0 })
 
-const getStatusType = (s) => ({ pending: 'warning', paid: '', shipped: 'success', delivered: 'success', cancelled: 'danger' }[s] || 'info')
-const getStatusText = (s) => ({ pending: '待付款', paid: '已付款', shipped: '已发货', delivered: '已送达', cancelled: '已取消' }[s] || s)
+const getStatusType = (s) => {
+  if (!s) return 'info'
+  const statusMap = { pending: 'warning', paid: '', shipped: 'success', delivered: 'success', cancelled: 'danger' }
+  return statusMap[s] || 'info'
+}
+const getStatusText = (s) => {
+  if (!s) return '未知'
+  const textMap = { pending: '待付款', paid: '已付款', shipped: '已发货', delivered: '已送达', cancelled: '已取消' }
+  return textMap[s] || s || '未知'
+}
 
 const fetchData = async () => {
   loading.value = true
@@ -215,13 +217,6 @@ onMounted(() => fetchData())
 </script>
 
 <style scoped>
-.orders-container { padding: 0; }
-.toolbar-card { margin-bottom: 16px; border-radius: 12px; }
-.toolbar { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.toolbar-left, .toolbar-right { display: flex; gap: 8px; align-items: center; }
-.table-card { border-radius: 12px; }
-.pagination-wrapper { margin-top: 20px; display: flex; justify-content: flex-end; }
-
 .order-no { font-family: monospace; font-weight: 600; color: #303133; }
 .amount { font-weight: 700; color: #e6a23c; }
 .product-info { color: #606266; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -287,6 +287,7 @@ const timeAgo = (dateStr) => {
 }
 
 const getStatusType = (status) => {
+  if (!status) return 'info'
   const map = {
     pending: 'warning',
     paid: '',
@@ -298,6 +299,7 @@ const getStatusType = (status) => {
 }
 
 const getStatusText = (status) => {
+  if (!status) return '未知'
   const map = {
     pending: '待付款',
     paid: '已付款',
@@ -305,7 +307,7 @@ const getStatusText = (status) => {
     completed: '已完成',
     cancelled: '已取消'
   }
-  return map[status] || status
+  return map[status] || status || '未知'
 }
 
 const initRevenueChart = () => {

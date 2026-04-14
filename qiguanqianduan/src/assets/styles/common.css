@@ -1,0 +1,114 @@
+/* ========================================
+ * 绮管后台 - 通用页面样式
+ * 文件位置: src/assets/styles/common.css
+ * 说明: 封装所有页面共用的样式规则
+ * ======================================== */
+
+/* ---------- 容器样式 ---------- */
+
+.page-container {
+  padding: 0;
+  min-height: calc(100vh - 120px);
+}
+
+/* ---------- 卡片样式 ---------- */
+
+.toolbar-card {
+  margin-bottom: 16px;
+  border-radius: 12px;
+}
+
+.toolbar-card .el-card__body {
+  padding: 16px 20px;
+}
+
+.table-card {
+  border-radius: 12px;
+}
+
+.table-card .el-card__body {
+  padding: 20px;
+}
+
+/* ---------- 工具栏布局 ---------- */
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.toolbar-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ---------- 表格相关 ---------- */
+
+.table-wrapper {
+  width: 100%;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ---------- 分页样式 ---------- */
+
+.pagination-wrapper {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 4px;
+}
+
+/* ---------- 对话框样式 ---------- */
+
+.dialog-form {
+  padding: 0 20px;
+}
+
+/* ---------- 状态标签 ---------- */
+
+.status-tag {
+  min-width: 70px;
+  text-align: center;
+}
+
+/* ---------- 空状态 ---------- */
+
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+/* ---------- 响应式调整 ---------- */
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .pagination-wrapper {
+    justify-content: center;
+  }
+}

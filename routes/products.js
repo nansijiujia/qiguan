@@ -46,9 +46,50 @@ router.get('/', async (req, res) => {
     // 验证分页参数
     const { page, limit, offset } = validatePagination(req);
 
-    // 简化版本：直接查询所有商品
-    const list = await query('SELECT * FROM products ORDER BY created_at DESC LIMIT ?', [limit]);
-    const total = Array.isArray(list) ? list.length : 0;
+    // 构建查询条件
+    const conditions = [];
+    const params = [];
+
+    if (req.query.category_id) {
+      conditions.push('category_id = ?');
+      params.push(req.query.category_id);
+    }
+
+    if (req.query.status) {
+      conditions.push('status = ?');
+      params.push(req.query.status);
+    }
+
+    if (req.query.keyword) {
+      conditions.push('(name LIKE ? OR description LIKE ?)');
+      const keyword = `%${req.query.keyword}%`;
+      params.push(keyword, keyword);
+    }
+
+    // 构建排序（安全：使用白名单校验防止SQL注入）
+    const ALLOWED_SORT_FIELDS = ['id', 'name', 'price', 'stock', 'status', 'created_at', 'updated_at', 'category_id', 'sales_count'];
+    let orderBy = 'p.created_at DESC';
+    if (req.query.sort && req.query.order) {
+      const sortField = req.query.sort;
+      if (!ALLOWED_SORT_FIELDS.includes(sortField)) {
+        throw new AppError('无效的排序字段，允许的字段: ' + ALLOWED_SORT_FIELDS.join(', '), 400, 'INVALID_SORT_FIELD');
+      }
+      const order = req.query.order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+      const tablePrefix = sortField === 'category_id' || sortField === 'sales_count' ? '' : 'p.';
+      orderBy = `${tablePrefix}${sortField} ${order}`;
+    }
+
+    // 构建SQL查询
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
+    const countSql = `SELECT COUNT(*) as total FROM products p ${whereClause}`;
+
+    params.push(limit, offset);
+    const countParams = conditions.length > 0 ? params.slice(0, -2) : [];
+
+    const list = await query(sql, params);
+    const countResult = await getOne(countSql, countParams);
+    const total = countResult ? countResult.total : 0;
     
     const formattedList = list.map(formatProduct);
 

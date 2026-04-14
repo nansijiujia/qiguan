@@ -7,14 +7,17 @@ require('dotenv').config({ path: '.env.production' });
 
 // 域名配置 - 从环境变量读取，提供默认值
 const DOMAIN_CONFIG = {
-  // 主域名（小程序API）
+  // 主域名（网站）
   primary: process.env.DOMAIN_PRIMARY || 'qimengzhiyue.cn',
   
-  // 子域名（后台管理系统）
-  admin: process.env.DOMAIN_ADMIN || 'admin.qimengzhiyue.cn',
+  // 网站域名（www前缀）
+  www: process.env.DOMAIN_WWW || 'www.qimengzhiyue.cn',
   
-  // API子域名（可选）
+  // 小程序API域名
   api: process.env.DOMAIN_API || 'api.qimengzhiyue.cn',
+  
+  // 后台管理系统子域名
+  admin: process.env.DOMAIN_ADMIN || 'admin.qimengzhiyue.cn',
   
   // 服务器IP（仅用于内部引用，不应暴露给用户）
   serverIp: process.env.SERVER_IP || '101.34.39.231',
@@ -49,8 +52,9 @@ function getRootHealthCheckUrl() {
 const CORS_CONFIG = {
   allowedOrigins: [
     `${DOMAIN_CONFIG.protocol}://${DOMAIN_CONFIG.primary}`,
+    `${DOMAIN_CONFIG.protocol}://${DOMAIN_CONFIG.www}`,
+    `${DOMAIN_CONFIG.protocol}://${DOMAIN_CONFIG.api}`,
     `${DOMAIN_CONFIG.protocol}://${DOMAIN_CONFIG.admin}`,
-    `${DOMAIN_CONFIG.protocol}://www.${DOMAIN_CONFIG.primary}`,
     'http://localhost:5173',
     'http://localhost:3000',
     'http://127.0.0.1:5173'

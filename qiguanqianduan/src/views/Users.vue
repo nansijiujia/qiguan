@@ -1,7 +1,11 @@
 <template>
-  <div class="users-container">
-    <!-- 工具栏 -->
-    <el-card shadow="never" class="toolbar-card">
+  <ListPageContainer
+    :loading="loading"
+    :pagination="pagination"
+    @size-change="fetchData"
+    @current-change="fetchData"
+  >
+    <template #toolbar>
       <div class="toolbar">
         <el-button type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon>添加用户
@@ -15,118 +19,103 @@
           <el-button type="primary" @click="fetchData">搜索</el-button>
         </div>
       </div>
-    </el-card>
+    </template>
 
-    <!-- 数据表格 -->
-    <el-card shadow="never" class="table-card" v-loading="loading">
-      <el-table :data="tableData" stripe border style="width: 100%">
-        <el-table-column prop="username" label="用户名" min-width="120">
-          <template #default="{ row }">
-            <div class="user-cell">
-              <el-avatar :size="32" :icon="UserFilled" style="background-color: #409eff;" />
-              <span>{{ row.username }}</span>
-            </div>
-          </template>
-        </el-table-column>
+    <el-table :data="tableData" stripe border style="width: 100%">
+      <el-table-column prop="username" label="用户名" min-width="120">
+        <template #default="{ row }">
+          <div class="user-cell">
+            <el-avatar :size="32" :icon="UserFilled" style="background-color: #409eff;" />
+            <span>{{ row.username }}</span>
+          </div>
+        </template>
+      </el-table-column>
 
-        <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
 
-        <el-table-column prop="role" label="角色" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.role === 'admin' ? 'danger' : 'info'" size="small" effect="dark">
-              {{ row.role === 'admin' ? '管理员' : '普通用户' }}
-            </el-tag>
-          </template>
-        </el-table-column>
+      <el-table-column prop="role" label="角色" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.role === 'admin' ? 'danger' : 'info'" size="small" effect="dark">
+            {{ row.role === 'admin' ? '管理员' : '普通用户' }}
+          </el-tag>
+        </template>
+      </el-table-column>
 
-        <el-table-column prop="status" label="状态" width="90" align="center">
-          <template #default="{ row }">
-            <el-switch
-              :model-value="row.status === 'active'"
-              @change="(val) => handleStatusChange(row, val)"
-              active-text=""
-              inactive-text=""
-              :disabled="row.role === 'admin'"
-            />
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="created_at" label="注册时间" width="170" />
-
-        <el-table-column prop="last_login" label="最后登录" width="170" />
-
-        <el-table-column label="操作" width="200" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" text size="small" @click="handleEdit(row)">
-              <el-icon><Edit /></el-icon>编辑
-            </el-button>
-            <el-button 
-              :type="row.status === 'active' ? 'warning' : 'success'" 
-              text size="small"
-              @click="handleToggleStatus(row)"
-              :disabled="row.role === 'admin'"
-            >
-              {{ row.status === 'active' ? '禁用' : '启用' }}
-            </el-button>
-            <el-button type="danger" text size="small" @click="handleDelete(row)" :disabled="row.role === 'admin'">
-              <el-icon><Delete /></el-icon>删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.limit"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
-          @size-change="fetchData"
-          @current-change="fetchData"
-        />
-      </div>
-    </el-card>
-
-    <!-- 添加/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑用户' : '添加用户'" width="520px" destroy-on-close @closed="resetForm">
-      <el-form ref="formRef" :model="formData" :rules="rules" label-width="80px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="formData.username" placeholder="请输入用户名" maxlength="20" show-word-limit />
-        </el-form-item>
-
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="formData.email" placeholder="请输入邮箱地址" maxlength="50" />
-        </el-form-item>
-
-        <el-form-item v-if="!isEdit" label="密码" prop="password">
-          <el-input v-model="formData.password" type="password" placeholder="请输入密码" show-password maxlength="30" />
-        </el-form-item>
-
-        <el-form-item label="角色" prop="role">
-          <el-select v-model="formData.role" placeholder="请选择角色" style="width: 100%;">
-            <el-option label="管理员" value="admin" />
-            <el-option label="普通用户" value="customer" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="状态">
-          <el-switch 
-            v-model="formData.status" 
-            active-value="active" 
-            inactive-value="inactive" 
-            active-text="启用" 
-            inactive-text="禁用" 
+      <el-table-column prop="status" label="状态" width="90" align="center">
+        <template #default="{ row }">
+          <el-switch
+            :model-value="row.status === 'active'"
+            @change="(val) => handleStatusChange(row, val)"
+            active-text=""
+            inactive-text=""
+            :disabled="row.role === 'admin'"
           />
-        </el-form-item>
-      </el-form>
+        </template>
+      </el-table-column>
 
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
-  </div>
+      <el-table-column prop="created_at" label="注册时间" width="170" />
+
+      <el-table-column prop="last_login" label="最后登录" width="170" />
+
+      <el-table-column label="操作" width="200" align="center" fixed="right">
+        <template #default="{ row }">
+          <el-button type="primary" text size="small" @click="handleEdit(row)">
+            <el-icon><Edit /></el-icon>编辑
+          </el-button>
+          <el-button 
+            :type="row.status === 'active' ? 'warning' : 'success'" 
+            text size="small"
+            @click="handleToggleStatus(row)"
+            :disabled="row.role === 'admin'"
+          >
+            {{ row.status === 'active' ? '禁用' : '启用' }}
+          </el-button>
+          <el-button type="danger" text size="small" @click="handleDelete(row)" :disabled="row.role === 'admin'>
+            <el-icon><Delete /></el-icon>删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </ListPageContainer>
+
+  <!-- 添加/编辑对话框 -->
+  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑用户' : '添加用户'" width="520px" destroy-on-close @closed="resetForm">
+    <el-form ref="formRef" :model="formData" :rules="rules" label-width="80px">
+      <el-form-item label="用户名" prop="username">
+        <el-input v-model="formData.username" placeholder="请输入用户名" maxlength="20" show-word-limit />
+      </el-form-item>
+
+      <el-form-item label="邮箱" prop="email">
+        <el-input v-model="formData.email" placeholder="请输入邮箱地址" maxlength="50" />
+      </el-form-item>
+
+      <el-form-item v-if="!isEdit" label="密码" prop="password">
+        <el-input v-model="formData.password" type="password" placeholder="请输入密码" show-password maxlength="30" />
+      </el-form-item>
+
+      <el-form-item label="角色" prop="role">
+        <el-select v-model="formData.role" placeholder="请选择角色" style="width: 100%;">
+          <el-option label="管理员" value="admin" />
+          <el-option label="普通用户" value="customer" />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item label="状态">
+        <el-switch 
+          v-model="formData.status" 
+          active-value="active" 
+          inactive-value="inactive" 
+          active-text="启用" 
+          inactive-text="禁用" 
+        />
+      </el-form-item>
+    </el-form>
+
+    <template #footer>
+      <el-button @click="dialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -134,8 +123,13 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserFilled } from '@element-plus/icons-vue'
 import { userApi } from '@/api'
+import ListPageContainer from '@/components/ListPageContainer.vue'
+import { usePagination } from '@/composables/usePagination'
+import { useTableLoading } from '@/composables/useTableLoading'
 
-const loading = ref(false)
+const { pagination } = usePagination(10)
+const { loading } = useTableLoading()
+
 const submitting = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -143,7 +137,6 @@ const currentId = ref(null)
 const tableData = ref([])
 
 const filters = reactive({ role: '', keyword: '' })
-const pagination = reactive({ page: 1, limit: 10, total: 0 })
 
 const formRef = ref()
 const formData = reactive({
@@ -265,13 +258,6 @@ onMounted(() => fetchData())
 </script>
 
 <style scoped>
-.users-container { padding: 0; }
-.toolbar-card { margin-bottom: 16px; border-radius: 12px; }
-.toolbar { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.toolbar-right { display: flex; gap: 8px; align-items: center; }
-.table-card { border-radius: 12px; }
-.pagination-wrapper { margin-top: 20px; display: flex; justify-content: flex-end; }
-
 .user-cell {
   display: flex;
   align-items: center;

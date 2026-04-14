@@ -32,18 +32,22 @@ export const orderApi = {
   create: (data) => request.post('/v1/orders', data),
   cancel: (id) => request.put(`/v1/orders/${id}/cancel`),
   cancelOrder: (id) => request.put(`/v1/orders/${id}/cancel`),
+  ship: (id) => request.put(`/v1/orders/${id}/ship`),
+  shipOrder: (id) => request.put(`/v1/orders/${id}/ship`),
+  confirm: (id) => request.put(`/v1/orders/${id}/confirm`),
+  confirmOrder: (id) => request.put(`/v1/orders/${id}/confirm`),
   getOrderDetail: (id) => request.get(`/v1/orders/${id}`)
 }
 
 export const userApi = {
-  getList: (params) => request.get('/v1/users', { params }),
-  getUsers: (params) => request.get('/v1/users', { params }),
-  add: (data) => request.post('/v1/users', data),
-  addUser: (data) => request.post('/v1/users', data),
-  update: (id, data) => request.put(`/v1/users/${id}`, data),
-  updateUser: (id, data) => request.put(`/v1/users/${id}`, data),
-  delete: (id) => request.delete(`/v1/users/${id}`),
-  deleteUser: (id) => request.delete(`/v1/users/${id}`)
+  getList: (params) => request.get('/v1/admin/users', { params }),
+  getUsers: (params) => request.get('/v1/admin/users', { params }),
+  add: (data) => request.post('/v1/admin/users', data),
+  addUser: (data) => request.post('/v1/admin/users', data),
+  update: (id, data) => request.put(`/v1/admin/users/${id}`, data),
+  updateUser: (id, data) => request.put(`/v1/admin/users/${id}`, data),
+  delete: (id) => request.delete(`/v1/admin/users/${id}`),
+  deleteUser: (id) => request.delete(`/v1/admin/users/${id}`)
 }
 
 export const dashboardApi = {
@@ -84,4 +88,24 @@ export const contentApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   }
+}
+
+export const systemApi = {
+  // 系统设置
+  getSettings: () => request.get('/v1/system/settings'),
+  saveSettings: (data) => request.put('/v1/system/settings', data),
+
+  // 安全设置
+  getSecuritySettings: () => request.get('/v1/system/security'),
+  saveSecuritySettings: (data) => request.put('/v1/system/security', data),
+
+  // 日志管理
+  getLogs: (params) => request.get('/v1/system/logs', { params })
+}
+
+export const customerApi = {
+  getList: (params) => request.get('/v1/customers', { params }),
+  getDetail: (id) => request.get(`/v1/customers/${id}`),
+  update: (id, data) => request.put(`/v1/customers/${id}`, data),
+  delete: (id) => request.delete(`/v1/customers/${id}`)
 }

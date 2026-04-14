@@ -10,37 +10,43 @@ const path = require('path');
 const http = require('http');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const swaggerUi = require('swagger-ui-express');
-const swaggerDocument = require('./swagger.json');
+// const swaggerUi = require('swagger-ui-express');
+// const swaggerDocument = require('./swagger.json');
 const { verifyToken, requireRole } = require('./middleware/auth');
-const { CORS_CONFIG } = require('./config/domain');
+const { DOMAIN_CONFIG, CORS_CONFIG } = require('./config/domain');
 const { AppError, sendErrorResponse } = require('./utils/errorHandler');
 
 // 使用统一的数据库模块
 const dbType = process.env.DB_TYPE || 'sqlite';
 const db = require('./db_unified');
 
-if (dbType === 'sqlite') {
-  console.log('[DEV] Using local SQLite database for testing');
-} else {
-  db.initPool()
-    .then(() => {
-      console.log('[MySQL/TDSQL-C] ✅ Connected to cloud database successfully');
-      console.log(`[MySQL/TDSQL-C] Host: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
-      console.log(`[MySQL/TDSQL-C] Database: ${process.env.DB_NAME}`);
-    })
-    .catch(err => {
-      console.error('[FATAL] Cloud database connection failed:', err.message);
-      console.error('[FATAL] Cannot start without database. Exiting...');
-      process.exit(1);
-    });
-}
+// 初始化数据库
+const initDatabase = async () => {
+  try {
+    await db.initPool();
+    console.log('[DB] Database initialized successfully');
+    return true;
+  } catch (err) {
+    console.error('[FATAL] Database initialization failed:', err.message);
+    console.error('[FATAL] Cannot start without database. Exiting...');
+    process.exit(1);
+  }
+};
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = 3003;
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// 服务器性能优化
+app.set('etag', 'strong');
+app.set('trust proxy', true);
+
+// 压缩中间件
+const compression = require('compression');
+app.use(compression({ level: 6 }));
+
+// 请求体解析优化
+app.use(express.json({ limit: '10mb', strict: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb', parameterLimit: 10000 }));
 app.use(cors(CORS_CONFIG));
 
 // Helmet安全头部配置
@@ -52,7 +58,13 @@ app.use(helmet({
       scriptSrc: ["'self'"],
       fontSrc: ["'self'", "data:"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://admin.qimengzhiyue.cn", "https://qimengzhiyue.cn"],
+      connectSrc: [
+        "'self'",
+        `${DOMAIN_CONFIG.protocol}://${DOMAIN_CONFIG.primary}`,
+        `${DOMAIN_CONFIG.protocol}://${DOMAIN_CONFIG.www}`,
+        `${DOMAIN_CONFIG.protocol}://${DOMAIN_CONFIG.api}`,
+        `${DOMAIN_CONFIG.protocol}://${DOMAIN_CONFIG.admin}`
+      ],
     },
   },
   hsts: {
@@ -80,19 +92,55 @@ const loginLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // 跳过健康检查
+    return req.path.includes('/health');
+  }
 });
 
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 100,
+  max: 200,
   message: {
     success: false,
     error: {
       code: 'RATE_LIMITED',
       message: '请求过于频繁，请稍后再试'
     }
+  },
+  skip: (req) => {
+    // 跳过健康检查
+    return req.path.includes('/health');
   }
 });
+
+// 内存缓存
+const NodeCache = require('node-cache');
+const cache = new NodeCache({ stdTTL: 300, checkperiod: 600 });
+
+// 缓存中间件
+const cacheMiddleware = (duration) => {
+  return (req, res, next) => {
+    if (req.method !== 'GET') {
+      return next();
+    }
+    
+    const key = `__express__${req.originalUrl}`;
+    const cachedBody = cache.get(key);
+    
+    if (cachedBody) {
+      return res.json(cachedBody);
+    }
+    
+    const originalSend = res.json;
+    res.json = function(body) {
+      cache.set(key, body, duration);
+      return originalSend.call(this, body);
+    };
+    
+    next();
+  };
+};
 
 // CSRF防护配置（可选：对于Bearer Token认证的系统可禁用）
 // 如果使用Cookie-based session，请取消下面的注释
@@ -110,24 +158,31 @@ app.get('/api/v1/csrf-token', (req, res) => {
 */
 
 // 静态文件服务 - 提供前端构建产物
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use('/admin', express.static(path.join(__dirname, 'dist'), {
+  maxAge: '1y',
+  etag: true,
+  lastModified: true,
+  immutable: true
+}));
 console.log('[Static] Serving static files from:', path.join(__dirname, 'dist'));
 
 app.options('*', (req, res) => res.status(200).send());
 
 const routes = [
   { path: '/auth', module: './routes/auth', middleware: [loginLimiter] },
-  { path: '/categories', module: './routes/categories', middleware: [apiLimiter, verifyToken] },
-  { path: '/products', module: './routes/products', middleware: [apiLimiter, verifyToken] },
-  { path: '/dashboard', module: './routes/dashboard', middleware: [apiLimiter, verifyToken] },
+  { path: '/categories', module: './routes/categories', middleware: [apiLimiter, verifyToken, cacheMiddleware(60)] },
+  { path: '/products', module: './routes/products', middleware: [apiLimiter, verifyToken, cacheMiddleware(60)] },
+  { path: '/dashboard', module: './routes/dashboard', middleware: [apiLimiter, verifyToken, cacheMiddleware(30)] },
   { path: '/orders', module: './routes/orders', middleware: [apiLimiter, verifyToken] },
   { path: '/admin/users', module: './routes/users', middleware: [apiLimiter, verifyToken, requireRole('admin')] },
   { path: '/users', module: './routes/user_profile', middleware: [apiLimiter, verifyToken] },
   { path: '/cart', module: './routes/cart', middleware: [apiLimiter, verifyToken] },
-  { path: '/content', module: './routes/content' },
-  { path: '/search', module: './routes/search' },
+  { path: '/content', module: './routes/content', middleware: [cacheMiddleware(120)] },
+  { path: '/search', module: './routes/search', middleware: [cacheMiddleware(60)] },
   { path: '/admin/coupons', module: './routes/coupons', middleware: [apiLimiter, verifyToken, requireRole('admin')] },
-  { path: '/coupons', module: './routes/coupons_public', middleware: [apiLimiter, verifyToken] },
+  { path: '/coupons', module: './routes/coupons_public', middleware: [apiLimiter, verifyToken, cacheMiddleware(60)] },
+  { path: '/system', module: './routes/system', middleware: [apiLimiter, verifyToken, requireRole('admin')] },
+  { path: '/customers', module: './routes/customers', middleware: [apiLimiter, verifyToken] },
   { path: '/health', module: './routes/health' }
 ];
 
@@ -150,10 +205,10 @@ routes.forEach(({ path: routePath, module: modulePath, middleware }) => {
 app.use('/api/v1/products/category', require('./routes/categories'));
 console.log('[Route] /api/v1/products/category (alias) ✓');
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: '绮管后台 API 文档'
-}));
+// app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+//   customCss: '.swagger-ui .topbar { display: none }',
+//   customSiteTitle: '绮管后台 API 文档'
+// }));
 
 // 前端路由支持 - 所有非API请求都返回index.html (SPA)
 app.get('*', (req, res) => {
@@ -195,18 +250,41 @@ app.use((err, req, res, next) => {
 
 const server = http.createServer(app);
 
-server.setTimeout(120000);
-server.keepAliveTimeout = 65000;
-server.headersTimeout = 66000;
+// 服务器超时设置优化
+server.setTimeout(60000);
+server.keepAliveTimeout = 75000;
+server.headersTimeout = 80000;
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log('');
-  console.log('✅✅✅ Server is RUNNING ✅✅✅');
-  console.log(`   Port: ${PORT}`);
-  console.log(`   Mode: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`   PID: ${process.pid}`);
-  console.log('');
+// 启用TCP_NODELAY以减少延迟
+server.on('connection', (socket) => {
+  socket.setNoDelay(true);
+  socket.setKeepAlive(true, 60000);
 });
+
+// 启动服务器
+const startServer = async () => {
+  try {
+    // 初始化数据库
+    await initDatabase();
+    
+    // 启动服务器
+    server.listen(PORT, '127.0.0.1', () => {
+      console.log('');
+      console.log('✅✅✅ Server is RUNNING ✅✅✅');
+      console.log(`   Port: ${PORT}`);
+      console.log(`   Mode: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`   PID: ${process.pid}`);
+      console.log(`   URL: http://127.0.0.1:${PORT}`);
+      console.log('');
+    });
+  } catch (err) {
+    console.error('[FATAL] Failed to start server:', err.message);
+    process.exit(1);
+  }
+};
+
+// 启动服务器
+startServer();
 
 server.on('error', (err) => {
   console.error('[FATAL] Server error:', err.message);
@@ -261,4 +339,4 @@ exports.main = async function(event, context) {
   });
 };
 
-module.exports = { app, server };
+module.exports = { app, server, cache };

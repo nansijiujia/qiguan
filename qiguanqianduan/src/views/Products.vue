@@ -1,7 +1,11 @@
 <template>
-  <div class="products-container">
-    <!-- 工具栏 -->
-    <el-card shadow="never" class="toolbar-card">
+  <ListPageContainer
+    :loading="loading"
+    :pagination="pagination"
+    @size-change="fetchData"
+    @current-change="fetchData"
+  >
+    <template #toolbar>
       <div class="toolbar">
         <div class="toolbar-left">
           <el-button type="primary" @click="handleAdd">
@@ -14,10 +18,38 @@
           >
             <el-icon><Delete /></el-icon>批量删除
           </el-button>
+          <el-button 
+            type="warning" 
+            :disabled="!selectedRows.length"
+            @click="handleBatchStatus"
+          >
+            <el-icon><Operation /></el-icon>批量修改状态
+          </el-button>
+          <el-button 
+            type="info" 
+            @click="handleExport"
+          >
+            <el-icon><Download /></el-icon>导出数据
+          </el-button>
+          <el-upload
+            class="upload-demo"
+            :show-file-list="false"
+            :auto-upload="false"
+            :on-change="handleImport"
+            accept=".xlsx,.xls,.csv"
+          >
+            <el-button type="success">
+              <el-icon><Upload /></el-icon>导入数据
+            </el-button>
+          </el-upload>
         </div>
         <div class="toolbar-right">
           <el-select v-model="filters.category" placeholder="全部分类" clearable style="width: 150px;">
             <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
+          </el-select>
+          <el-select v-model="filters.status" placeholder="全部状态" clearable style="width: 120px;">
+            <el-option label="上架" value="active" />
+            <el-option label="下架" value="inactive" />
           </el-select>
           <el-input 
             v-model="filters.keyword" 
@@ -30,17 +62,16 @@
           <el-button type="primary" @click="fetchData">搜索</el-button>
         </div>
       </div>
-    </el-card>
+    </template>
 
-    <!-- 数据表格 -->
-    <el-card shadow="never" class="table-card" v-loading="loading">
-      <el-table
-        :data="tableData"
-        stripe
-        border
-        @selection-change="handleSelectionChange"
-        style="width: 100%"
-      >
+    <el-table
+      :data="tableData"
+      stripe
+      border
+      @selection-change="handleSelectionChange"
+      @sort-change="handleSortChange"
+      style="width: 100%"
+    >
         <el-table-column type="selection" width="50" align="center" />
         
         <el-table-column label="商品图片" width="100" align="center">
@@ -67,13 +98,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="price" label="价格(¥)" width="100" align="center">
+        <el-table-column prop="price" label="价格(¥)" width="100" align="center" sortable>
           <template #default="{ row }">
             <span class="price">{{ row.price?.toFixed(2) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="stock" label="库存" width="80" align="center">
+        <el-table-column prop="stock" label="库存" width="80" align="center" sortable>
           <template #default="{ row }">
             <span :class="{ 'low-stock': row.stock < 10 }">{{ row.stock }}</span>
           </template>
@@ -87,7 +118,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="created_at" label="创建时间" width="170" />
+        <el-table-column prop="created_at" label="创建时间" width="170" sortable />
 
         <el-table-column label="操作" width="160" align="center" fixed="right">
           <template #default="{ row }">
@@ -100,20 +131,6 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.limit"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="fetchData"
-          @current-change="fetchData"
-        />
-      </div>
-    </el-card>
 
     <!-- 添加/编辑对话框 -->
     <el-dialog
@@ -188,15 +205,44 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
-  </div>
+
+    <!-- 批量修改状态对话框 -->
+    <el-dialog
+      v-model="batchStatusVisible"
+      title="批量修改状态"
+      width="400px"
+      destroy-on-close
+    >
+      <el-form :model="batchStatusForm" label-width="80px">
+        <el-form-item label="目标状态">
+          <el-radio-group v-model="batchStatusForm.status">
+            <el-radio label="active">上架</el-radio>
+            <el-radio label="inactive">下架</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="batchStatusVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchStatusLoading" @click="handleBatchStatusSubmit">确定</el-button>
+      </template>
+    </el-dialog>
+  </ListPageContainer>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Edit, Delete, Upload, Download, Operation, PictureFilled } from '@element-plus/icons-vue'
 import { productApi, categoryApi } from '@/api'
+import ListPageContainer from '@/components/ListPageContainer.vue'
+import { usePagination } from '@/composables/usePagination'
+import { useTableLoading } from '@/composables/useTableLoading'
 
-const loading = ref(false)
+const { pagination } = usePagination(10)
+const { loading } = useTableLoading()
+import * as XLSX from 'xlsx'
+
 const submitting = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -206,18 +252,27 @@ const tableData = ref([])
 const categories = ref([])
 const fileList = ref([])
 
+// 批量修改状态
+const batchStatusVisible = ref(false)
+const batchStatusLoading = ref(false)
+const batchStatusForm = reactive({
+  status: 'active'
+})
+
 // 筛选条件
 const filters = reactive({
   category: '',
+  status: '',
   keyword: ''
 })
 
-// 分页
-const pagination = reactive({
-  page: 1,
-  limit: 10,
-  total: 0
+// 排序
+const sortConfig = reactive({
+  prop: '',
+  order: ''
 })
+
+
 
 // 表单数据
 const formRef = ref()
@@ -244,7 +299,10 @@ const fetchData = async () => {
   try {
     const params = { page: pagination.page, limit: pagination.limit }
     if (filters.category) params.category_id = filters.category
+    if (filters.status) params.status = filters.status
     if (filters.keyword) params.keyword = filters.keyword
+    if (sortConfig.prop) params.sort = sortConfig.prop
+    if (sortConfig.order) params.order = sortConfig.order === 'ascending' ? 'asc' : 'desc'
     
     const res = await productApi.getProducts(params)
     if (res.data?.data) {
@@ -316,14 +374,105 @@ const handleBatchDelete = async () => {
   }
 }
 
+// 批量修改状态
+const handleBatchStatus = () => {
+  batchStatusVisible.value = true
+}
+
+// 批量修改状态提交
+const handleBatchStatusSubmit = async () => {
+  batchStatusLoading.value = true
+  try {
+    for (const item of selectedRows.value) {
+      await productApi.updateProduct(item.id, { status: batchStatusForm.status })
+    }
+    ElMessage.success('批量修改状态成功')
+    batchStatusVisible.value = false
+    fetchData()
+  } catch (error) {
+    ElMessage.error('批量修改状态失败')
+  } finally {
+    batchStatusLoading.value = false
+  }
+}
+
 // 选择变化
 const handleSelectionChange = (rows) => {
   selectedRows.value = rows
 }
 
+// 排序变化
+const handleSortChange = (sort) => {
+  sortConfig.prop = sort.prop
+  sortConfig.order = sort.order
+  fetchData()
+}
+
 // 文件变化
 const handleFileChange = (file) => {
   formData.image = URL.createObjectURL(file.raw)
+}
+
+// 导出数据
+const handleExport = () => {
+  // 准备导出数据
+  const exportData = tableData.value.map(item => ({
+    '商品ID': item.id,
+    '商品名称': item.name,
+    '商品描述': item.description || '',
+    '价格(¥)': item.price?.toFixed(2) || '0.00',
+    '库存': item.stock || 0,
+    '分类': item.category_name || '未分类',
+    '状态': item.status === 'active' ? '上架' : '下架',
+    '创建时间': item.created_at || ''
+  }))
+
+  // 创建工作簿
+  const workbook = XLSX.utils.book_new()
+  const worksheet = XLSX.utils.json_to_sheet(exportData)
+  XLSX.utils.book_append_sheet(workbook, worksheet, '商品数据')
+
+  // 导出文件
+  XLSX.writeFile(workbook, `商品数据_${new Date().toISOString().split('T')[0]}.xlsx`)
+  ElMessage.success('导出成功')
+}
+
+// 导入数据
+const handleImport = async (file) => {
+  const fileReader = new FileReader()
+  fileReader.onload = async (e) => {
+    try {
+      const data = new Uint8Array(e.target.result)
+      const workbook = XLSX.read(data, { type: 'array' })
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+      const jsonData = XLSX.utils.sheet_to_json(worksheet)
+
+      // 处理导入数据
+      const importData = jsonData.map(item => {
+        // 查找分类ID
+        const category = categories.value.find(cat => cat.name === item['分类'])
+        return {
+          name: item['商品名称'],
+          description: item['商品描述'] || '',
+          price: parseFloat(item['价格(¥)']) || 0,
+          stock: parseInt(item['库存']) || 0,
+          category_id: category?.id || null,
+          status: item['状态'] === '上架' ? 'active' : 'inactive'
+        }
+      })
+
+      // 批量导入
+      for (const item of importData) {
+        await productApi.addProduct(item)
+      }
+
+      ElMessage.success(`成功导入 ${importData.length} 条数据`)
+      fetchData()
+    } catch (error) {
+      ElMessage.error('导入失败，请检查文件格式')
+    }
+  }
+  fileReader.readAsArrayBuffer(file.raw)
 }
 
 // 提交表单 - 增强错误处理
@@ -362,32 +511,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.products-container {
-  padding: 0;
-}
-
-.toolbar-card {
-  margin-bottom: 16px;
-  border-radius: 12px;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.toolbar-left, .toolbar-right {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.table-card {
-  border-radius: 12px;
-}
-
 .price {
   font-weight: 600;
   color: #e6a23c;
@@ -396,12 +519,6 @@ onMounted(() => {
 .low-stock {
   color: #f56c6c;
   font-weight: bold;
-}
-
-.pagination-wrapper {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
 }
 
 .image-error {

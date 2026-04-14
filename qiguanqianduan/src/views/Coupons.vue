@@ -314,8 +314,11 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { couponApi } from '@/api'
+import { usePagination } from '@/composables/usePagination'
+import { useTableLoading } from '@/composables/useTableLoading'
 
-const loading = ref(false)
+const { pagination } = usePagination(10)
+const { loading } = useTableLoading()
 const submitting = ref(false)
 const dialogVisible = ref(false)
 const statsDialogVisible = ref(false)
@@ -341,14 +344,7 @@ const filters = reactive({
 
 let searchTimer = null
 
-// 分页
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  total: 0
-})
-
-// 排序
+// 筛选条件排序
 const sortConfig = reactive({
   prop: '',
   order: ''
@@ -446,14 +442,16 @@ const formatDate = (dateStr) => {
 
 // 获取状态类型
 const getStatusType = (status) => {
+  if (!status) return 'info'
   const map = { active: 'success', inactive: 'info', expired: 'danger' }
   return map[status] || 'info'
 }
 
 // 获取状态标签
 const getStatusLabel = (status) => {
+  if (!status) return '未知'
   const map = { active: '活跃', inactive: '停用', expired: '已过期' }
-  return map[status] || status
+  return map[status] || status || '未知'
 }
 
 // 复制优惠码

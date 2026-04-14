@@ -2,6 +2,15 @@ import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import router from '@/router'
 
+// 请求缓存
+const requestCache = new Map()
+
+// 重试配置
+const retryConfig = {
+  maxAttempts: 3,
+  delay: 1000
+}
+
 const service = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 15000,
@@ -16,6 +25,21 @@ service.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    // 启用缓存
+    if (config.method === 'get' && config.cache !== false) {
+      const cacheKey = `${config.url}${JSON.stringify(config.params)}`
+      if (requestCache.has(cacheKey)) {
+        return Promise.resolve({
+          data: requestCache.get(cacheKey),
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config
+        })
+      }
+    }
+    
     return config
   },
   (error) => {
@@ -27,6 +51,12 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   (response) => {
     const res = response.data
+
+    // 缓存GET请求结果
+    if (response.config.method === 'get' && response.config.cache !== false) {
+      const cacheKey = `${response.config.url}${JSON.stringify(response.config.params)}`
+      requestCache.set(cacheKey, res)
+    }
 
     if (res.success === false) {
       const errorCode = res.error?.code || 'UNKNOWN'
@@ -60,7 +90,34 @@ service.interceptors.response.use(
 
     return res
   },
-  (error) => {
+  async (error) => {
+    // 如果是响应错误但没有response对象（网络错误等）
+    if (!error.response) {
+      console.error('[Network Error]', {
+        message: error.message,
+        code: error.code
+      })
+      
+      ElMessage.error('网络连接失败，请检查网络后重试')
+      return Promise.reject(error)
+    }
+    
+    const config = error.config
+    
+    // 重试机制
+    if (config && config.retry !== false) {
+      config.retryAttempts = config.retryAttempts || 0
+      
+      if (config.retryAttempts < retryConfig.maxAttempts) {
+        config.retryAttempts++
+        
+        // 延迟重试
+        await new Promise(resolve => setTimeout(resolve, retryConfig.delay * config.retryAttempts))
+        
+        return service(config)
+      }
+    }
+
     console.error('[API Request Failed]', {
       url: error.config?.url,
       method: error.config?.method,
@@ -110,6 +167,9 @@ function handleUnauthorized() {
 
   localStorage.removeItem('token')
   localStorage.removeItem('user')
+  
+  // 清除缓存
+  requestCache.clear()
 
   ElMessage.warning({
     message: '登录已过期，请重新登录',
@@ -120,6 +180,11 @@ function handleUnauthorized() {
       }
     }
   })
+}
+
+// 清除缓存的方法
+export function clearRequestCache() {
+  requestCache.clear()
 }
 
 export default service

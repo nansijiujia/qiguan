@@ -39,10 +39,10 @@ const routes = [
         meta: { title: '订单管理', icon: 'Document' }
       },
       {
-        path: 'users',
-        name: 'Users',
-        component: () => import('@/views/Users.vue'),
-        meta: { title: '用户管理', icon: 'User' }
+        path: 'customers',
+        name: 'Customers',
+        component: () => import('@/views/Customers.vue'),
+        meta: { title: '客户资料管理', icon: 'UserFilled' }
       },
       {
         path: 'coupons',
@@ -55,6 +55,31 @@ const routes = [
         name: 'ContentManage',
         component: () => import('@/views/ContentManage.vue'),
         meta: { title: '内容管理', icon: 'Document' }
+      },
+      {
+        path: 'system',
+        name: 'System',
+        meta: { title: '系统配置', icon: 'Setting' },
+        children: [
+          {
+            path: 'settings',
+            name: 'SystemSettings',
+            component: () => import('@/views/system/Settings.vue'),
+            meta: { title: '参数设置' }
+          },
+          {
+            path: 'logs',
+            name: 'SystemLogs',
+            component: () => import('@/views/system/Logs.vue'),
+            meta: { title: '日志管理' }
+          },
+          {
+            path: 'security',
+            name: 'SystemSecurity',
+            component: () => import('@/views/system/Security.vue'),
+            meta: { title: '安全策略' }
+          }
+        ]
       }
     ]
   }
