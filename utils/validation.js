@@ -1,10 +1,20 @@
 /**
  * 输入验证工具
  * 用于验证API请求参数的有效性和安全性
+ * @module utils/validation
  */
 
-// 自定义错误类
+/**
+ * 自定义验证错误类
+ * @extends Error
+ */
 class AppError extends Error {
+  /**
+   * 创建验证错误实例
+   * @param {string} message - 错误信息
+   * @param {number} [statusCode=400] - HTTP状态码
+   * @param {string} [code='VALIDATION_ERROR'] - 错误代码
+   */
   constructor(message, statusCode = 400, code = 'VALIDATION_ERROR') {
     super(message);
     this.statusCode = statusCode;
@@ -13,7 +23,10 @@ class AppError extends Error {
   }
 }
 
-// 验证规则类型
+/**
+ * 预定义的验证规则常量
+ * @type {Object.<string, string>}
+ */
 const VALIDATION_RULES = {
   REQUIRED: 'required',
   STRING: 'string',
@@ -257,7 +270,7 @@ function isSafeSqlInput(input) {
 }
 
 // ============================================================
-// 新增验证函数 - 完整的输入验证体系
+// 完整的输入验证函数体系
 // ============================================================
 
 /**

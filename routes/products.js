@@ -12,8 +12,9 @@ const {
 } = require('../utils/validation');
 
 const express = require('express');
-const { query, getOne, execute } = require('../db_unified');
+const { query, getOne, execute } = require('../db-unified');
 const { requirePermission } = require('../middleware/rbac');
+const { sendErrorResponse } = require('../utils/error-handler');
 const router = express.Router();
 
 function escapeHtml(text) {
@@ -298,8 +299,12 @@ router.post('/', requirePermission('products', 'create'), async (req, res) => {
     
     if (category_id !== undefined && category_id !== null) {
       validateId(category_id, '分类ID');
+      const category = await getOne('SELECT id FROM categories WHERE id = ?', [category_id]);
+      if (!category) {
+        throw new AppError(`分类ID ${category_id} 不存在`, 400, 'CATEGORY_NOT_FOUND');
+      }
     }
-    
+
     validateString(description, '描述', { max: 2000, required: false });
     
     if (status) {
@@ -378,13 +383,17 @@ router.put('/:id', requirePermission('products', 'update'), async (req, res) => 
     if (category_id !== undefined) {
       if (category_id !== null) {
         validateId(category_id, '分类ID');
+        const category = await getOne('SELECT id FROM categories WHERE id = ?', [category_id]);
+        if (!category) {
+          throw new AppError(`分类ID ${category_id} 不存在`, 400, 'CATEGORY_NOT_FOUND');
+        }
       }
       fields.push('category_id = ?');
       params.push(category_id);
     }
     if (image !== undefined) {
       fields.push('image = ?');
-      params.push(image);
+      params.push(sanitizeString(image));
     }
     if (status !== undefined) {
       validateEnum(status, ['active', 'inactive', 'draft'], '状态');
@@ -420,6 +429,34 @@ router.delete('/:id', requirePermission('products', 'delete'), async (req, res) 
     
     // 验证ID
     const productId = validateId(id, '商品ID');
+    
+    // 检查是否存在关联的订单项
+    const orderCheck = await getOne(
+      'SELECT COUNT(*) as count FROM order_items WHERE product_id = ?',
+      [productId]
+    );
+    
+    if (orderCheck && orderCheck.count > 0) {
+      throw new AppError(
+        `无法删除该商品，存在 ${orderCheck.count} 个关联订单项。请先处理相关订单或考虑将商品下架。`,
+        400,
+        'HAS_ORDER_ITEMS'
+      );
+    }
+    
+    // 检查是否存在关联的购物车项
+    const cartCheck = await getOne(
+      'SELECT COUNT(*) as count FROM cart_items WHERE product_id = ?',
+      [productId]
+    );
+    
+    if (cartCheck && cartCheck.count > 0) {
+      throw new AppError(
+        `无法删除该商品，存在 ${cartCheck.count} 个关联购物车项。`,
+        400,
+        'HAS_CART_ITEMS'
+      );
+    }
     
     const result = await execute('DELETE FROM products WHERE id = ?', [productId]);
 

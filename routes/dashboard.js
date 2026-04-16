@@ -4,9 +4,9 @@
 
 const express = require('express');
 const router = express.Router();
-const { query } = require('../db_unified');
+const { query } = require('../db-unified');
 const { validateRequestBody } = require('../utils/validation');
-const { sendErrorResponse } = require('../utils/errorHandler');
+const { sendErrorResponse } = require('../utils/error-handler');
 
 // GET /api/v1/dashboard/stats - 仪表盘统计数据
 router.get('/stats', async (req, res) => {
@@ -163,7 +163,7 @@ async function getCartStats() {
     query('SELECT COUNT(DISTINCT user_id) as count FROM cart'),
     query('SELECT COUNT(DISTINCT user_id) as count FROM cart WHERE updated_at >= ?', [sevenDaysAgoStr]),
     query('SELECT COUNT(DISTINCT user_id) as count FROM cart WHERE updated_at < ?', [sevenDaysAgoStr]),
-    query('SELECT COALESCE(AVG(cart_count), 0) as avg FROM (SELECT COUNT(*) as cart_count FROM cart GROUP BY user_id)'),
+    query('SELECT COALESCE(AVG(cart_count), 0) as avg FROM (SELECT COUNT(*) as cart_count FROM cart GROUP BY user_id) AS t'),
     query(`
       SELECT DATE(created_at) as date, COUNT(*) as count
       FROM cart
@@ -290,19 +290,29 @@ async function getRecentOrders() {
     LIMIT 10
   `);
 
-  const result = [];
-  for (const order of orders) {
-    const items = await query(
-      'SELECT product_name as productName, quantity FROM order_items WHERE order_id = ?',
-      [order.id]
-    );
-    result.push({
-      ...order,
-      items: items || []
-    });
-  }
+  if (orders.length === 0) return [];
 
-  return result;
+  const orderIds = orders.map(o => o.id);
+  const allItems = await query(
+    'SELECT order_id, product_name as productName, quantity FROM order_items WHERE order_id IN (?)',
+    [orderIds]
+  );
+
+  const itemsMap = {};
+  (allItems || []).forEach(item => {
+    if (!itemsMap[item.order_id]) {
+      itemsMap[item.order_id] = [];
+    }
+    itemsMap[item.order_id].push({
+      productName: item.productName,
+      quantity: item.quantity
+    });
+  });
+
+  return orders.map(order => ({
+    ...order,
+    items: itemsMap[order.id] || []
+  }));
 }
 
 async function getUserGrowth() {

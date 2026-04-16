@@ -16,19 +16,29 @@ const {
 } = require('../utils/validation');
 
 const express = require('express');
-const { query, getOne, execute } = require('../db_unified');
+const { query, getOne, execute } = require('../db-unified');
 const { validateRequestBody } = require('../utils/validation');
-const { sendErrorResponse } = require('../utils/errorHandler');
+const { sendErrorResponse } = require('../utils/error-handler');
 const router = express.Router();
+
+function createOrderNotification(orderData) {
+  const template = {
+    title: `新订单 #${orderData.order_number || orderData.id}`,
+    content: `客户 ${orderData.customer_name || '未知'} 下了一笔新订单，金额 ¥${orderData.total_amount || orderData.amount || '0.00'}`,
+    type: 'order',
+    priority: 'high',
+    related_type: 'order',
+    related_id: orderData.id
+  };
+  return template;
+}
 
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { page = 1, limit = 10, status, keyword } = req.query;
     
-    // 验证分页参数
     const { page: pageNum, limit: limitNum, offset } = validatePagination(req);
     
-    // 验证状态参数（如果提供）
     if (status) {
       const validStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled'];
       validateEnum(status, validStatuses, '订单状态');
@@ -40,6 +50,12 @@ router.get('/', async (req, res) => {
     if (status) {
       whereSql += ' AND o.status = ?';
       params.push(status);
+    }
+
+    if (keyword && keyword.trim()) {
+      whereSql += ' AND (o.order_no LIKE ? OR u.username LIKE ?)';
+      const kw = `%${keyword.trim()}%`;
+      params.push(kw, kw);
     }
 
     const countResult = await getOne(
@@ -57,12 +73,26 @@ router.get('/', async (req, res) => {
       [...params, limitNum, offset]
     );
 
+    const orderIds = orders.map(o => o.id);
+    let itemsMap = {};
+    if (orderIds.length > 0) {
+      const allItems = await query(
+        'SELECT * FROM order_items WHERE order_id IN (?)',
+        [orderIds]
+      );
+      for (const item of allItems) {
+        if (!itemsMap[item.order_id]) itemsMap[item.order_id] = [];
+        itemsMap[item.order_id].push(item);
+      }
+    }
+
     res.json({
       success: true,
       data: {
         list: orders.map(order => ({
           ...order,
-          shipping_address: order.shipping_address ? JSON.parse(order.shipping_address) : null
+          shipping_address: order.shipping_address ? JSON.parse(order.shipping_address) : null,
+          items: itemsMap[order.id] || []
         })),
         pagination: {
           page: pageNum,
@@ -136,6 +166,32 @@ router.post('/', async (req, res) => {
         'INSERT INTO order_items (order_id, product_id, product_name, quantity, price) VALUES (?, ?, ?, ?, ?)',
         [orderId, item.product_id, product?.name || 'Unknown', parseInt(item.quantity), Number(item.price)]
       );
+    }
+
+    try {
+      const admins = await query('SELECT id FROM users WHERE role = \'admin\' AND status = \'active\'');
+      
+      if (admins && admins.length > 0) {
+        const notification = createOrderNotification({
+          id: orderId,
+          order_number: orderNumber,
+          total_amount: totalAmount,
+          customer_name: req.user?.username || '未知'
+        });
+        
+        for (const admin of admins) {
+          await execute(
+            `INSERT INTO notifications (user_id, title, content, type, priority, related_type, related_id, is_read, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())`,
+            [admin.id, notification.title, notification.content, notification.type, 
+             notification.priority, notification.related_type, notification.related_id]
+          );
+        }
+        
+        console.log(`[Orders/Notification] 📢 已向 ${admins.length} 位管理员发送订单通知 (订单ID: ${orderId})`);
+      }
+    } catch (notifyError) {
+      console.error('[Orders/Notification] ❌ 发送订单通知失败:', notifyError.message);
     }
 
     res.status(201).json({
@@ -248,9 +304,9 @@ router.put('/:id/cancel', async (req, res) => {
     );
 
     // 如果已支付，需要退款逻辑（此处简化处理）
-    if (order.payment_status === 'paid') {
+    if (order.status === 'paid') {
       // TODO: 调用退款接口
-      
+
     }
 
     // 记录管理员日志（如果有admin_logs表）
@@ -272,6 +328,78 @@ router.put('/:id/cancel', async (req, res) => {
   } catch (error) {
     console.error('[Orders/Cancel] ❌ 取消订单失败:', error.message);
     return sendErrorResponse(res, error, 'Orders/Cancel');
+  }
+});
+
+// PUT /api/v1/orders/:id/ship - 发货
+router.put('/:id/ship', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // 验证订单ID
+    const validatedOrderId = validateId(orderId, '订单ID');
+    
+    // 检查订单是否存在
+    const order = await getOne('SELECT * FROM orders WHERE id = ?', [validatedOrderId]);
+    if (!order) {
+      throw new AppError('订单不存在', 404, 'NOT_FOUND');
+    }
+
+    // 检查订单状态是否可发货（只有已付款状态可发货）
+    if (order.status !== 'paid') {
+      throw new AppError(`当前订单状态为${order.status}，无法发货`, 400, 'INVALID_STATUS');
+    }
+
+    // 更新订单状态
+    await execute(
+      "UPDATE orders SET status = 'shipped', shipped_at = NOW(), updated_at = NOW() WHERE id = ?",
+      [validatedOrderId]
+    );
+
+    res.json({
+      success: true,
+      message: '订单已成功发货',
+      data: { orderId: validatedOrderId, newStatus: 'shipped' }
+    });
+  } catch (error) {
+    console.error('[Orders/Ship] ❌ 发货失败:', error.message);
+    return sendErrorResponse(res, error, 'Orders/Ship');
+  }
+});
+
+// PUT /api/v1/orders/:id/confirm - 确认收货
+router.put('/:id/confirm', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // 验证订单ID
+    const validatedOrderId = validateId(orderId, '订单ID');
+    
+    // 检查订单是否存在
+    const order = await getOne('SELECT * FROM orders WHERE id = ?', [validatedOrderId]);
+    if (!order) {
+      throw new AppError('订单不存在', 404, 'NOT_FOUND');
+    }
+
+    // 检查订单状态是否可确认收货（只有已发货状态可确认收货）
+    if (order.status !== 'shipped') {
+      throw new AppError(`当前订单状态为${order.status}，无法确认收货`, 400, 'INVALID_STATUS');
+    }
+
+    // 更新订单状态
+    await execute(
+      "UPDATE orders SET status = 'delivered', delivered_at = NOW(), updated_at = NOW() WHERE id = ?",
+      [validatedOrderId]
+    );
+
+    res.json({
+      success: true,
+      message: '订单已成功确认收货',
+      data: { orderId: validatedOrderId, newStatus: 'delivered' }
+    });
+  } catch (error) {
+    console.error('[Orders/Confirm] ❌ 确认收货失败:', error.message);
+    return sendErrorResponse(res, error, 'Orders/Confirm');
   }
 });
 

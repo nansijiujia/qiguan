@@ -33,3 +33,30 @@ archive/
 .trae/
 NUL
 
+# SSL 证书和密钥（敏感安全信息）
+../ssl-certs/
+qimengzhiyue.pem
+
+# 临时脚本和测试数据
+_*.js
+_*.sql
+_*.sh
+_*.ps1
+*.tar.gz
+*.bak
+*.backup
+login_*.json
+wrong_*.json
+token.txt
+invalid_*.txt
+
+# 覆盖率报告
+coverage/
+
+# 部署包
+deploy-v4-package/
+dist-backup-*/
+
+# 操作系统特殊文件
+NUL
+

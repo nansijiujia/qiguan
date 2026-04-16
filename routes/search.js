@@ -1,6 +1,6 @@
 // [TIMEOUT] 建议: 为长时间运行的数据库操作添加超时设置
 const express = require('express');
-const { query } = require('../db_unified')
+const { query } = require('../db-unified')
 const { validateRequestBody } = require('../utils/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();

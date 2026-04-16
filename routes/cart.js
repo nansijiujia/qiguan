@@ -1,5 +1,5 @@
 const express = require('express');
-const { query, getOne, execute } = require('../db_unified');
+const { query, getOne, execute } = require('../db-unified');
 const { validateRequestBody } = require('../utils/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();

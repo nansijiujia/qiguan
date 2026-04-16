@@ -11,7 +11,7 @@ const ROLE_PERMISSIONS = {
     categories: ['create', 'read', 'update', 'delete'],
     orders: ['create', 'read', 'update', 'delete'],
     users: ['create', 'read', 'update', 'delete'],
-    coupons: ['create', 'read', 'update', 'delete'],
+    coupons: ['create', 'read', 'update', 'delete', 'assign'],
     content: ['create', 'read', 'update', 'delete'],
     cart: ['read', 'update', 'delete']
   },
@@ -21,7 +21,7 @@ const ROLE_PERMISSIONS = {
     categories: ['create', 'read', 'update'],
     orders: ['read', 'update'],
     users: ['read'],
-    coupons: ['create', 'read', 'update', 'delete'],
+    coupons: ['create', 'read', 'update', 'delete', 'assign'],
     content: ['create', 'read', 'update', 'delete'],
     cart: ['read']
   },

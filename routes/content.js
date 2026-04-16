@@ -18,9 +18,9 @@ const {
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { query, getOne, execute } = require('../db_unified');
+const { query, getOne, execute } = require('../db-unified');
 const { verifyToken, requireRole } = require('../middleware/auth');
-const { sendErrorResponse } = require('../utils/errorHandler');
+const { sendErrorResponse } = require('../utils/error-handler');
 const router = express.Router();
 
 // 权限验证中间件
@@ -346,15 +346,39 @@ router.put('/banners/reorder', verifyToken, checkContentPermission, async (req, 
 // 6. GET /api/v1/content/homepage/config - 获取所有首页配置
 router.get('/homepage/config', async (req, res) => {
   try {
-    const configs = await query('SELECT config_key, config_value, description FROM homepage_config');
+    console.log('[Content/GetHomepageConfig] 📋 开始获取首页配置...');
+
+    let configs;
+    let hasDescriptionField = true;
+
+    try {
+      configs = await query('SELECT config_key, config_value, description FROM homepage_config');
+      console.log('[Content/GetHomepageConfig] ✅ 使用完整字段查询成功（含description）');
+    } catch (e) {
+      hasDescriptionField = false;
+      console.warn('[Content/GetHomepageConfig] ⚠️ description字段不存在，使用基本查询:', e.message);
+      try {
+        configs = await query('SELECT config_key, config_value FROM homepage_config');
+        console.log('[Content/GetHomepageConfig] ✅ 使用基本字段查询成功');
+      } catch (innerError) {
+        console.error('[Content/GetHomepageConfig] ❌ 基本查询也失败:', innerError.message);
+        throw innerError;
+      }
+    }
 
     const configObj = {};
-    configs.forEach(item => {
-      configObj[item.config_key] = {
-        value: item.config_value,
-        description: item.description
-      };
-    });
+    if (configs && Array.isArray(configs)) {
+      configs.forEach(item => {
+        if (item && item.config_key !== undefined) {
+          configObj[item.config_key] = {
+            value: item.config_value,
+            description: hasDescriptionField ? (item.description || '') : ''
+          };
+        }
+      });
+    }
+
+    console.log(`[Content/GetHomepageConfig] 📊 成功加载 ${Object.keys(configObj).length} 个配置项`);
 
     res.json({
       success: true,
@@ -371,6 +395,8 @@ router.put('/homepage/config', async (req, res) => {
   try {
     const updates = req.body;
 
+    console.log('[Content/UpdateHomepageConfig] 📝 开始更新首页配置...');
+
     // 验证输入
     if (!updates || typeof updates !== 'object' || Object.keys(updates).length === 0) {
       throw new AppError('请提供需要更新的配置项', 400, 'VALIDATION_ERROR');
@@ -381,14 +407,17 @@ router.put('/homepage/config', async (req, res) => {
       validateString(key, '配置键', { min: 1, max: 50 });
     }
 
+    let hasDescriptionField = true;
+    let updateCount = 0;
+
     for (const [key, value] of Object.entries(updates)) {
       const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-      
+
       // 验证配置值的长度
       if (stringValue.length > 2000) {
         throw new AppError(`配置项"${key}"的值过长`, 400, 'INVALID_LENGTH');
       }
-      
+
       const existing = await getOne('SELECT id FROM homepage_config WHERE config_key = ?', [key]);
 
       if (existing) {
@@ -396,15 +425,41 @@ router.put('/homepage/config', async (req, res) => {
           'UPDATE homepage_config SET config_value = ? WHERE config_key = ?',
           [stringValue, key]
         );
+        updateCount++;
       } else {
-        await execute(
-          'INSERT INTO homepage_config (config_key, config_value, description) VALUES (?, ?, ?)',
-          [key, stringValue, '']
-        );
+        // 尝试带description字段的插入
+        try {
+          await execute(
+            'INSERT INTO homepage_config (config_key, config_value, description) VALUES (?, ?, ?)',
+            [key, stringValue, '']
+          );
+          updateCount++;
+        } catch (insertError) {
+          // 如果失败（字段不存在），尝试基本插入
+          if (insertError.message && insertError.message.includes('description')) {
+            hasDescriptionField = false;
+            console.warn('[Content/UpdateHomepageConfig] ⚠️ description字段不存在，使用基本INSERT:', insertError.message);
+            try {
+              await execute(
+                'INSERT INTO homepage_config (config_key, config_value) VALUES (?, ?)',
+                [key, stringValue]
+              );
+              updateCount++;
+            } catch (basicInsertError) {
+              console.error(`[Content/UpdateHomepageConfig] ❌ 插入配置项"${key}"失败:`, basicInsertError.message);
+              throw basicInsertError;
+            }
+          } else {
+            console.error(`[Content/UpdateHomepageConfig] ❌ 插入配置项"${key}"失败:`, insertError.message);
+            throw insertError;
+          }
+        }
       }
     }
 
-    res.json({ success: true, message: '配置更新成功' });
+    console.log(`[Content/UpdateHomepageConfig] ✅ 成功更新 ${updateCount} 个配置项`);
+
+    res.json({ success: true, message: `配置更新成功，共更新 ${updateCount} 个配置项` });
   } catch (error) {
     console.error('[Content/UpdateHomepageConfig] ❌ 更新首页配置失败:', error.message);
     return sendErrorResponse(res, error, 'Content/UpdateHomepageConfig');

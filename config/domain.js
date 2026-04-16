@@ -3,7 +3,19 @@
  * 统一管理所有域名和URL配置，避免硬编码
  */
 
-require('dotenv').config({ path: '.env.production' });
+const fs = require('fs');
+const path = require('path');
+
+const nodeEnv = process.env.NODE_ENV || 'development';
+const envFile = `.env.${nodeEnv}`;
+const envPath = path.join(__dirname, '..', envFile);
+
+if (fs.existsSync(envPath)) {
+  console.log(`[Config] Loading environment from ${envFile}`);
+  require('dotenv').config({ path: envPath });
+} else {
+  console.warn(`[Config] ⚠️ ${envFile} not found, using system env vars only`);
+}
 
 // 域名配置 - 从环境变量读取，提供默认值
 const DOMAIN_CONFIG = {

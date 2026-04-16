@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { query, getOne, execute } = require('../db_unified');
+const { query, getOne, execute } = require('../db-unified');
 router.use(verifyToken);
 
 router.get('/', asyncHandler(async (req, res) => {

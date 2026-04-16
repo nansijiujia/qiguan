@@ -4,7 +4,16 @@
   "description": "绮管电商后台系统 - 前后端一体化部署",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"No tests configured\" && exit 0",
+    "test": "jest --coverage --verbose",
+    "test:unit": "jest tests/unit --coverage --verbose",
+    "test:integration": "jest tests/integration --verbose",
+    "test:api": "jest tests/*-api.test.js --coverage --verbose",
+    "test:frontend": "cd admin-frontend && npx vitest run tests/unit --coverage",
+    "test:frontend:watch": "cd admin-frontend && npx vitest tests/unit",
+    "test:e2e": "npx playwright test tests/e2e/",
+    "test:perf": "node tests/performance/categories.perf.js",
+    "test:all": "npm run test:frontend && npm run test:integration",
+    "test:watch": "jest --watch",
     "start": "node index.js",
     "build:frontend": "cd qiguanqianduan && npm install && npm run build && cd .. && if exist dist rmdir /s /q dist && mkdir dist && xcopy qiguanqianduan\\dist dist /E /I /Q",
     "build": "npm run build:frontend",
@@ -26,16 +35,19 @@
     "express-rate-limit": "^8.3.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
     "mysql2": "^3.22.0",
     "node-cache": "^5.1.2",
     "sql.js": "^1.14.1",
     "sqlite3": "^6.0.1",
     "ssh2": "^1.17.0",
-    "supertest": "^7.2.2",
+    "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "jest": "^30.3.0",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.2.2"
   }
 }
